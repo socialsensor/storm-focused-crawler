@@ -15,13 +15,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.entity.ContentType;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -56,7 +55,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	private OutputCollector _collector;
-	private DefaultHttpClient _httpclient;
+	private HttpClient _httpclient;
 	
 	private BoilerpipeExtractor _extractor;
 	private BoilerpipeExtractor _articleExtractor;
@@ -67,12 +66,14 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	private int minArea = 200 * 200;
 	private int urlLength = 500;
 	
-	private ThreadSafeClientConnManager _cm;
+	private PoolingHttpClientConnectionManager _cm;
 	
 	private int numOfFetchers = 48;
 	
 	private BlockingQueue<WebPage> _queue;
 	private BlockingQueue<List<Object>> _tupleQueue;
+
+	private RequestConfig _requestConfig;
 	
 	public ArticleExtractionBolt(int numOfFetchers) {
 		this.numOfFetchers = numOfFetchers;
@@ -88,14 +89,19 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		_queue = new LinkedBlockingQueue<WebPage>();
 		_tupleQueue =  new LinkedBlockingQueue<List<Object>>();
 		
-		HttpParams params = new BasicHttpParams();
-		HttpConnectionParams.setConnectionTimeout(params, 2000);
-		HttpConnectionParams.setSoTimeout(params, 2000);
+		_cm = new PoolingHttpClientConnectionManager();
+		_cm.setMaxTotal(200);
+		_cm.setDefaultMaxPerRoute(20);
+
+
+		_httpclient = HttpClients.custom()
+		        .setConnectionManager(_cm)
+		        .build();
 		
-		_cm = new ThreadSafeClientConnManager();
-		_cm.setMaxTotal(100);
-		
-		_httpclient = new DefaultHttpClient(_cm, params);
+		this._requestConfig = RequestConfig.custom()
+		        .setSocketTimeout(2000)
+		        .setConnectTimeout(2000)
+		        .build();
 
 		_articleExtractor = CommonExtractors.ARTICLE_EXTRACTOR;
 	    _extractor = CommonExtractors.KEEP_EVERYTHING_EXTRACTOR;
@@ -192,6 +198,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				try {
 					
 					httpget = new HttpGet(expandedUrl);
+					httpget.setConfig(_requestConfig);
 					HttpResponse response = _httpclient.execute(httpget);
 					
 					HttpEntity entity = response.getEntity();
