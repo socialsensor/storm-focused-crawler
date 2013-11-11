@@ -85,14 +85,14 @@
 			<version>0.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
-			<groupId>net.sourceforge.nekohtml</groupId>
-			<artifactId>nekohtml</artifactId>
-			<version>1.9.19</version>
-		</dependency>
-		<dependency>
 			<groupId>storm</groupId>
 			<artifactId>storm</artifactId>
 			<version>0.8.1</version>
+		</dependency>
+		<dependency>
+			<groupId>net.sourceforge.nekohtml</groupId>
+			<artifactId>nekohtml</artifactId>
+			<version>1.9.19</version>
 		</dependency>
   	</dependencies>
 	
