@@ -82,7 +82,7 @@
               <transformers>
                 <transformer>
                   <manifestEntries>
-                    <Main-Class>eu.socialsensor.sfc.streams.StreamCollector</Main-Class>
+                    <Main-Class>eu.socialsensor.focused.crawler.WebLinksHandler</Main-Class>
                     <Build-Number>123</Build-Number>
                   </manifestEntries>
                 </transformer>
