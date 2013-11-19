@@ -27,7 +27,6 @@ public class RankedWebPage implements Comparable<RankedWebPage> {
 		return webPage.getUrl() + " : " + score;
 	}
 	
-	@Override
 	public int compareTo(RankedWebPage other) {
 		if(this.score > other.score) {
 			return -1;

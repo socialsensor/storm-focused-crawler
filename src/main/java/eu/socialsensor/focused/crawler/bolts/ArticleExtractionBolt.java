@@ -143,7 +143,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			this.tupleQueue = _tupleQueue;
 		}
 		
-		@Override
 		public void run() {
 			while(true) {
 				List<Object> tuple = tupleQueue.poll();
@@ -175,7 +174,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			this.queue = _queue;
 		}
 		
-		@Override
 		public void run() {
 			while(true) {
 				

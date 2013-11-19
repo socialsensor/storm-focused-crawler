@@ -76,7 +76,6 @@ public class Image implements Comparable<Image> {
 		return src+"\twidth="+width+"\theight="+height+"\talt="+alt+"\tarea="+area;
 	}
 
-	@Override
 	public int compareTo(Image o) {
 		if(o == this) {
 			return 0;

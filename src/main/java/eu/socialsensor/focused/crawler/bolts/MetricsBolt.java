@@ -17,14 +17,12 @@ public class MetricsBolt extends BaseRichBolt {
 	private int c = 0;
 	private long t = 0;
 	
-	@Override
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
 		
 		t = System.currentTimeMillis();
 	}
 
-	@Override
 	public void execute(Tuple input) {
 		if(++c%100==0) {
 			t = System.currentTimeMillis() - t;
@@ -33,7 +31,6 @@ public class MetricsBolt extends BaseRichBolt {
 		}
 	}
 
-	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		
 	}
