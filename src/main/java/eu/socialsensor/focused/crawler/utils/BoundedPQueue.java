@@ -55,7 +55,6 @@ public class BoundedPQueue<E extends Comparable<E>> {
 	}
 	
 	public static class CustomComparator<E extends Comparable<E>> implements Comparator<E> {
-		@Override
 		public int compare(E o1, E o2) {
 			//give me a max heap
 			return o1.compareTo(o2) * -1;

@@ -29,7 +29,6 @@ public class RankerBolt extends BaseRichBolt {
 	private OutputCollector _collector;
 	private PriorityQueue<RankedWebPage> _queue;
 
-	@Override
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
 		this._collector = collector;
@@ -42,7 +41,6 @@ public class RankerBolt extends BaseRichBolt {
 		}
 	}
 
-	@Override
 	public void execute(Tuple input) {
 		WebPage webPage = (WebPage) input.getValueByField("webPage");
 		if(webPage != null) {
@@ -60,7 +58,6 @@ public class RankerBolt extends BaseRichBolt {
 		}	
 	}
 
-	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declare(new Fields("webPage"));
 	}
