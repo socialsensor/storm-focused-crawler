@@ -345,7 +345,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			mediaItem.setPageUrl(base.toString());
 			mediaItem.setRefUrl(ref);
 			
-			mediaItem.setShares(webPage.getShares());
+			mediaItem.setShares((long)webPage.getShares());
 			
 			mediaItem.setTitle(alt.trim());
 			if(w != -1 && h != -1) 
@@ -420,7 +420,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			mediaItem.setPageUrl(baseUri);
 			mediaItem.setRefUrl(ref);
 			
-			mediaItem.setShares(webPage.getShares());
+			mediaItem.setShares((long)webPage.getShares());
 			
 			mediaItem.setTitle(alt.trim());
 			if(w != -1 && h != -1) 
