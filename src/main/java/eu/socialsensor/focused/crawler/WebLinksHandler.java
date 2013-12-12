@@ -23,19 +23,21 @@ public class WebLinksHandler {
 	public static void main(String[] args) {
 		
 		
-		String mongoHost = args[0];
-		String mongoDbName = args[1]; 
-		String mongoCollection = args[2];
-		String mediaCollection = args[3];
+//		String mongoHost = args[0];
+//		String mongoDbName = args[1]; 
+//		String mongoCollection = args[2];
+//		String mediaCollection = args[3];
 		
-//		String mongoHost = "social1.atc.gr";
-//		String mongoDbName = "Streams"; 
-//		String mongoCollection = "WebPages";
-//		String mediaCollection = "MediaItems";
+		String mongoHost = "160.40.50.207";
+		String mongoDbName = "Streams"; 
+		String mongoCollection = "WebPages";
+		String mediaCollection = "MediaItemsFromWP_boilerpipe";
 		
 			
 		DBObject query = new BasicDBObject("status", "new");
-	
+		long t = System.currentTimeMillis() - 60 * 60 * 1000;
+		query.put("publicationTime", new BasicDBObject("$gt", t));
+		
 		URLExpanderBolt urlExpander;
 		try {
 			urlExpander = new URLExpanderBolt(mongoHost, mongoDbName, mongoCollection);

@@ -104,7 +104,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		        .build();
 
 		_articleExtractor = CommonExtractors.ARTICLE_EXTRACTOR;
-	    _extractor = CommonExtractors.KEEP_EVERYTHING_EXTRACTOR;
+	    _extractor = CommonExtractors.ARTICLE_EXTRACTOR;
 	    _imageExtractor = ImageExtractor.INSTANCE;
 	    _estimator = SimpleEstimator.INSTANCE;	
 	    
@@ -268,9 +268,8 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  		Article article = new Article(title, text);
 	  		article.setLowQuality(isLowQuality);
 	  		
-	  		//List<MediaItem> media = extractAricleImages(imgDoc, webPage, base, pageHash, content);
-	  		
-	  		List<MediaItem> media = extractAllImages(base, title, webPage, pageHash, content);
+	  		List<MediaItem> media = extractAricleImages(imgDoc, webPage, base, pageHash, content);		
+	  		//List<MediaItem> media = extractAllImages(base, title, webPage, pageHash, content);
 	  		
 	  		for(MediaItem mItem : media) {
 	  			article.addMediaItem(mItem);
@@ -344,8 +343,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			
 			mediaItem.setPageUrl(base.toString());
 			mediaItem.setRefUrl(ref);
+			mediaItem.setRef(webPage.getReference());
 			
-			mediaItem.setShares(webPage.getShares());
+			mediaItem.setShares((long)webPage.getShares());
 			
 			mediaItem.setTitle(alt.trim());
 			if(w != -1 && h != -1) 
@@ -420,7 +420,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			mediaItem.setPageUrl(baseUri);
 			mediaItem.setRefUrl(ref);
 			
-			mediaItem.setShares(webPage.getShares());
+			mediaItem.setShares((long)webPage.getShares());
 			
 			mediaItem.setTitle(alt.trim());
 			if(w != -1 && h != -1) 

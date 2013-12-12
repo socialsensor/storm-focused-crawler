@@ -67,6 +67,10 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		try {
 			MediaItem mediaItem = getMediaItem(expandedUrl);	
 			
+			if(mediaItem != null) {
+				mediaItem.setRef(webPage.getReference());
+			}
+			
 			synchronized(_collector) {
 				if(mediaItem != null) { 
 					mediaItem.setRefUrl(url);
