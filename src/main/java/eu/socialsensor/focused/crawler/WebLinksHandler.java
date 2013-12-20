@@ -1,5 +1,7 @@
 package eu.socialsensor.focused.crawler;
 
+import java.util.Date;
+
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 
@@ -9,7 +11,6 @@ import eu.socialsensor.focused.crawler.bolts.RankerBolt;
 import eu.socialsensor.focused.crawler.bolts.URLExpanderBolt;
 import eu.socialsensor.focused.crawler.bolts.UpdaterBolt;
 import eu.socialsensor.focused.crawler.spouts.MongoDbInjector;
-
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.topology.TopologyBuilder;
@@ -31,12 +32,12 @@ public class WebLinksHandler {
 		String mongoHost = "160.40.50.207";
 		String mongoDbName = "Streams"; 
 		String mongoCollection = "WebPages";
-		String mediaCollection = "MediaItemsFromWP_boilerpipe";
+		String mediaCollection = "MediaItems_WP";
 		
 			
 		DBObject query = new BasicDBObject("status", "new");
-		long t = System.currentTimeMillis() - 60 * 60 * 1000;
-		query.put("publicationTime", new BasicDBObject("$gt", t));
+		//long t = System.currentTimeMillis() - 1 * 60 * 60 * 1000;
+		//query.put("date", new BasicDBObject("$gt", new Date(t)));
 		
 		URLExpanderBolt urlExpander;
 		try {

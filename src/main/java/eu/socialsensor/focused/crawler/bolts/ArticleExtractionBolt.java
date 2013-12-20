@@ -342,7 +342,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			mediaItem.setThumbnail(url.toString());
 			
 			mediaItem.setPageUrl(base.toString());
-			mediaItem.setRefUrl(ref);
 			mediaItem.setRef(webPage.getReference());
 			
 			mediaItem.setShares((long)webPage.getShares());
@@ -418,7 +417,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			mediaItem.setThumbnail(url.toString());
 			
 			mediaItem.setPageUrl(baseUri);
-			mediaItem.setRefUrl(ref);
 			
 			mediaItem.setShares((long)webPage.getShares());
 			

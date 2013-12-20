@@ -13,7 +13,7 @@ import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Tuple;
 
 
-public class TextIndexerBolt extends BaseRichBolt {
+public class MediaItemTextIndexerBolt extends BaseRichBolt {
 
 	
 	/**
@@ -26,7 +26,7 @@ public class TextIndexerBolt extends BaseRichBolt {
 
 	private SolrMediaItemHandler solrMediaHandler;
 	
-	public TextIndexerBolt(String hostname, String service, String collection) {
+	public MediaItemTextIndexerBolt(String hostname, String service, String collection) {
 		this.hostname = hostname;
 		this.service = service;
 		this.collection = collection;
