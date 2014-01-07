@@ -8,12 +8,13 @@ import java.util.regex.Pattern;
 
 import eu.socialsensor.framework.common.domain.MediaItem;
 import eu.socialsensor.framework.common.domain.WebPage;
-import eu.socialsensor.framework.retrievers.socialmedia.MediaRetriever;
-import eu.socialsensor.framework.retrievers.socialmedia.dailymotion.DailyMotionMediaRetriever;
-import eu.socialsensor.framework.retrievers.socialmedia.instagram.InstagramMediaRetriever;
-import eu.socialsensor.framework.retrievers.socialmedia.twitpic.TwitpicMediaRetriever;
-import eu.socialsensor.framework.retrievers.socialmedia.vimeo.VimeoMediaRetriever;
-import eu.socialsensor.framework.retrievers.socialmedia.youtube.YtMediaRetriever;
+import eu.socialsensor.framework.retrievers.MediaRetriever;
+import eu.socialsensor.framework.retrievers.dailymotion.DailyMotionMediaRetriever;
+import eu.socialsensor.framework.retrievers.instagram.InstagramMediaRetriever;
+import eu.socialsensor.framework.retrievers.twitpic.TwitpicMediaRetriever;
+import eu.socialsensor.framework.retrievers.vimeo.VimeoMediaRetriever;
+import eu.socialsensor.framework.retrievers.youtube.YtMediaRetriever;
+
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
