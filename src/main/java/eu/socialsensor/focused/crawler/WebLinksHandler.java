@@ -1,6 +1,7 @@
 package eu.socialsensor.focused.crawler;
 
-import java.util.Date;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.XMLConfiguration;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
@@ -23,18 +24,25 @@ public class WebLinksHandler {
 	 */
 	public static void main(String[] args) {
 		
+		XMLConfiguration config;
+		try {
+			if(args.length == 1)
+				config = new XMLConfiguration(args[0]);
+			else
+				config = new XMLConfiguration("./conf/links.handler.xml");
+		}
+		catch(ConfigurationException ex) {
+			return;
+		}
 		
-//		String mongoHost = args[0];
-//		String mongoDbName = args[1]; 
-//		String mongoCollection = args[2];
-//		String mediaCollection = args[3];
+		String redisHost = config.getString("redis.host", "localhost");
+		String redisCollection = config.getString("redis.collection", "MediaItems");
 		
-		String mongoHost = "160.40.50.207";
-		String mongoDbName = "Streams"; 
-		String mongoCollection = "WebPages";
-		String mediaCollection = "MediaItems_WP";
-		
-			
+		String mongoHost = config.getString("mongo.host", "localhost");
+		String mongoDbName = config.getString("mongo.db", "Streams");
+		String mongoCollection = config.getString("mongo.collection", "WebPages");
+		String mediaCollection = config.getString("mongo.mediacollection", "MediaItems");
+				
 		DBObject query = new BasicDBObject("status", "new");
 		//long t = System.currentTimeMillis() - 1 * 60 * 60 * 1000;
 		//query.put("date", new BasicDBObject("$gt", new Date(t)));
@@ -52,10 +60,11 @@ public class WebLinksHandler {
         
 		builder.setBolt("ranker", new RankerBolt(), 1).shuffleGrouping("injector");
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("ranker");
-		builder.setBolt("articleExtraction",  new ArticleExtractionBolt(60), 1).shuffleGrouping("expander", "article");
+		builder.setBolt("articleExtraction",  new ArticleExtractionBolt(48), 1).shuffleGrouping("expander", "article");
 		builder.setBolt("mediaExtraction",  new MediaExtractionBolt(), 4).shuffleGrouping("expander", "media");
 		
-		builder.setBolt("updater",  new UpdaterBolt(mongoHost, mongoDbName, mongoCollection, mediaCollection), 4)
+		builder.setBolt("updater",  new UpdaterBolt(mongoHost, mongoDbName, mongoCollection, mediaCollection,
+				redisHost, redisCollection), 4)
 			.shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
 		
 		//builder.setBolt("metrics", new MetricsBolt(), 1).shuffleGrouping("updater");

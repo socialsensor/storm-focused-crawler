@@ -100,8 +100,13 @@ public class RedisInjector extends BaseRichSpout {
         if(ret == null) {
             Utils.sleep(50);
         } else {
-        	WebPage webPage = ObjectFactory.createWebPage(ret);
-            _collector.emit(tuple(webPage));            
+        	try {
+        		WebPage webPage = ObjectFactory.createWebPage(ret);
+            	_collector.emit(tuple(webPage));    
+        	}
+        	catch(Exception e) {
+        		
+        	}
         }
 	}
 

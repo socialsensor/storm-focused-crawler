@@ -3,12 +3,15 @@ package eu.socialsensor.focused.crawler.bolts;
 import java.util.List;
 import java.util.Map;
 
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
+
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
-import com.mongodb.WriteResult;
 import com.mongodb.util.JSON;
 
 import eu.socialsensor.focused.crawler.models.Article;
@@ -32,15 +35,25 @@ public class UpdaterBolt extends BaseRichBolt {
 	private String webpagesCollectionName;
 	private String mediaCollectionName;
 	
+	private String redisHost;
+	private String redisChannel;
+	
 	private MongoClient _mongo;
 	private DB _database;
 	private DBCollection _pagesCollection, _mediaCollection;
+	
+	private Jedis _publisherJedis;
+	
 
-	public UpdaterBolt(String mongoHost, String mongoDbName, String webpagesCollectionName, String mediaCollectionName) {
+	public UpdaterBolt(String mongoHost, String mongoDbName, String webpagesCollectionName, String mediaCollectionName, 
+			String redisHost, String redisChannel) {
 		this.mongoHost = mongoHost;
 		this.mongoDbName = mongoDbName;
 		this.webpagesCollectionName = webpagesCollectionName;
 		this.mediaCollectionName = mediaCollectionName;
+		
+		this.redisHost = redisHost;
+		this.redisChannel = redisChannel;
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -53,6 +66,11 @@ public class UpdaterBolt extends BaseRichBolt {
 			_database = _mongo.getDB(mongoDbName);
 			_pagesCollection = _database.getCollection(webpagesCollectionName);
 			_mediaCollection = _database.getCollection(mediaCollectionName);
+			
+			JedisPoolConfig poolConfig = new JedisPoolConfig();
+	        JedisPool jedisPool = new JedisPool(poolConfig, redisHost, 6379, 0);
+			
+	        this._publisherJedis = jedisPool.getResource();
 			
 		} catch (Exception e) {
 			
@@ -74,9 +92,10 @@ public class UpdaterBolt extends BaseRichBolt {
 			if(type.equals("media")) {
 				MediaItem mediaItem = (MediaItem) tuple.getValueByField("content");
 			
-				if(_mediaCollection.count(new BasicDBObject("id", mediaItem.getId()))==0) {
+				if(_mediaCollection.findOne(new BasicDBObject("id", mediaItem.getId()))==null) {
 					DBObject doc = (DBObject) JSON.parse(mediaItem.toJSONString());
 					_mediaCollection.insert(doc);
+					_publisherJedis.publish(redisChannel, mediaItem.toJSONString());
 				}
 				DBObject o = new BasicDBObject("$set", new BasicDBObject("status", "proccessed"));
 				_pagesCollection.update(q, o);
@@ -95,16 +114,14 @@ public class UpdaterBolt extends BaseRichBolt {
 				
 				DBObject o = new BasicDBObject("$set", fields);
 				
-				WriteResult result = _pagesCollection.update(q, o);
-				if(result.getN()>0) {
-					// OK
-				}
+				_pagesCollection.update(q, o);
 				
 				for(MediaItem mediaItem : mediaItems) {
 					try {
-						if(_mediaCollection.count(new BasicDBObject("id", mediaItem.getId()))==0) {
+						if(_mediaCollection.findOne(new BasicDBObject("id", mediaItem.getId()))==null) {
 							DBObject doc = (DBObject) JSON.parse(mediaItem.toJSONString());
 							_mediaCollection.insert(doc);
+							_publisherJedis.publish(redisChannel, mediaItem.toJSONString());
 						}
 					}
 					catch(Exception e) {
