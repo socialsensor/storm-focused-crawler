@@ -44,8 +44,6 @@ public class WebLinksHandler {
 		String mediaCollection = config.getString("mongo.mediacollection", "MediaItems");
 				
 		DBObject query = new BasicDBObject("status", "new");
-		//long t = System.currentTimeMillis() - 1 * 60 * 60 * 1000;
-		//query.put("date", new BasicDBObject("$gt", new Date(t)));
 		
 		URLExpanderBolt urlExpander;
 		try {
@@ -63,49 +61,52 @@ public class WebLinksHandler {
 		builder.setBolt("articleExtraction",  new ArticleExtractionBolt(48), 1).shuffleGrouping("expander", "article");
 		builder.setBolt("mediaExtraction",  new MediaExtractionBolt(), 4).shuffleGrouping("expander", "media");
 		
-		builder.setBolt("updater",  new UpdaterBolt(mongoHost, mongoDbName, mongoCollection, mediaCollection,
-				redisHost, redisCollection), 4)
-			.shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
-		
-		//builder.setBolt("metrics", new MetricsBolt(), 1).shuffleGrouping("updater");
+		UpdaterBolt updater = new UpdaterBolt(mongoHost, mongoDbName, mongoCollection, mediaCollection, redisHost, redisCollection);
+		builder.setBolt("updater", updater , 4).shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
 		
         Config conf = new Config();
         conf.setDebug(false);
-       
-		//while(true) {
-			try {
-        // Run topology
-//        if(args!=null && (args.length == 1 || args.length == 2)) {
-//        	int workers = 2;
-//        	if(args.length>1) {
-//        		try {
-//        		workers = Integer.parseInt(args[1]);
-//        		}
-//        		catch(NumberFormatException e) {
-//        			System.out.println(e.getMessage());
-//        		}
-//        	}
-//        	
-//            conf.setNumWorkers(workers);
-//            try {
-//				StormSubmitter.submitTopology(args[0], conf, builder.createTopology());
-//			} catch (Exception e) {
-//				System.out.print(e.getMessage());
-//			}
-//        } else {
-       System.out.println("Submit topology to local cluster");
-       LocalCluster cluster = new LocalCluster();
-       cluster.submitTopology("twitter", conf, builder.createTopology());
-//        }
         
-//		}
-        //Utils.sleep(300000);
-        //cluster.shutdown();
-		}
-			catch(Exception e) {
-				e.printStackTrace();
+        try {
+        	System.out.println("Submit topology to local cluster");
+        	LocalCluster cluster = new LocalCluster();
+        	cluster.submitTopology("twitter", conf, builder.createTopology());
+        }
+        catch(Exception e) {
+        	e.printStackTrace();
+        }
+        
+        /*
+		while(true) {
+			if(args!=null && (args.length == 1 || args.length == 2)) {
+				int workers = 2;
+				if(args.length>1) {
+					try {
+						workers = Integer.parseInt(args[1]);
+					}
+					catch(NumberFormatException e) {
+						System.out.println(e.getMessage());
+					}
+				}
+        	
+				conf.setNumWorkers(workers);
+				try {
+					StormSubmitter.submitTopology(args[0], conf, builder.createTopology());
+				} catch (Exception e) {
+					System.out.print(e.getMessage());
+				}
+			} else {
+				System.out.println("Submit topology to local cluster");
+				try {
+					LocalCluster cluster = new LocalCluster();
+					cluster.submitTopology("focused-crawler", conf, builder.createTopology());
+				}
+				catch(Exception e) {
+					e.printStackTrace();
+				}
 			}
-		//}
-		
+        
+		}
+		*/
 	}
 }
