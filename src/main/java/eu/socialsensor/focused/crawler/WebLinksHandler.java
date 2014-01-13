@@ -1,15 +1,22 @@
 package eu.socialsensor.focused.crawler;
 
+
+import java.net.UnknownHostException;
 import java.util.Date;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.DB;
+import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
+import com.mongodb.MongoClient;
 
 import eu.socialsensor.focused.crawler.bolts.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.MediaExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.RankerBolt;
 import eu.socialsensor.focused.crawler.bolts.URLExpanderBolt;
 import eu.socialsensor.focused.crawler.bolts.UpdaterBolt;
+import eu.socialsensor.focused.crawler.bolts.WebPagesIndexerBolt;
 import eu.socialsensor.focused.crawler.spouts.MongoDbInjector;
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
@@ -20,8 +27,9 @@ public class WebLinksHandler {
 
 	/**
 	 * @param args
+	 * @throws UnknownHostException 
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws UnknownHostException {
 		
 		
 //		String mongoHost = args[0];
@@ -29,14 +37,17 @@ public class WebLinksHandler {
 //		String mongoCollection = args[2];
 //		String mediaCollection = args[3];
 		
-		String mongoHost = "160.40.50.207";
+		String mongoHost = "social1.atc.gr";
 		String mongoDbName = "Streams"; 
 		String mongoCollection = "WebPages";
-		String mediaCollection = "MediaItems_WP";
+		String mediaCollection = "MediaItems";
 		
-			
+		MongoClient client = new MongoClient(mongoHost);
+		DB db = client.getDB(mongoDbName);		
+		DBCollection col = db.getCollection(mongoCollection);
+		
 		DBObject query = new BasicDBObject("status", "new");
-		//long t = System.currentTimeMillis() - 1 * 60 * 60 * 1000;
+		//long t = System.currentTimeMillis() - 1 * 10 * 60 * 1000;
 		//query.put("date", new BasicDBObject("$gt", new Date(t)));
 		
 		URLExpanderBolt urlExpander;
@@ -58,7 +69,8 @@ public class WebLinksHandler {
 		builder.setBolt("updater",  new UpdaterBolt(mongoHost, mongoDbName, mongoCollection, mediaCollection), 4)
 			.shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
 		
-		//builder.setBolt("metrics", new MetricsBolt(), 1).shuffleGrouping("updater");
+		WebPagesIndexerBolt indexer = new WebPagesIndexerBolt("http://social1.atc.gr:8080/solr/WebPages", mongoHost, mongoDbName, mongoCollection);
+		builder.setBolt("text-indexer", indexer, 1).shuffleGrouping("updater");
 		
         Config conf = new Config();
         conf.setDebug(false);
@@ -86,7 +98,7 @@ public class WebLinksHandler {
 //        } else {
        System.out.println("Submit topology to local cluster");
        LocalCluster cluster = new LocalCluster();
-       cluster.submitTopology("twitter", conf, builder.createTopology());
+       cluster.submitTopology("focused-crawler", conf, builder.createTopology());
 //        }
         
 //		}

@@ -1,5 +1,7 @@
 package eu.socialsensor.focused.crawler.bolts;
 
+import static backtype.storm.utils.Utils.tuple;
+
 import java.util.List;
 import java.util.Map;
 
@@ -13,11 +15,11 @@ import com.mongodb.util.JSON;
 
 import eu.socialsensor.focused.crawler.models.Article;
 import eu.socialsensor.framework.common.domain.MediaItem;
-
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
+import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 
 
@@ -35,6 +37,7 @@ public class UpdaterBolt extends BaseRichBolt {
 	private MongoClient _mongo;
 	private DB _database;
 	private DBCollection _pagesCollection, _mediaCollection;
+	private OutputCollector _collector;
 
 	public UpdaterBolt(String mongoHost, String mongoDbName, String webpagesCollectionName, String mediaCollectionName) {
 		this.mongoHost = mongoHost;
@@ -44,11 +47,14 @@ public class UpdaterBolt extends BaseRichBolt {
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
+    	declarer.declare(new Fields("url"));
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
 			OutputCollector collector) {
+		
 		try {
+			_collector = collector;
 			_mongo = new MongoClient(mongoHost);
 			_database = _mongo.getDB(mongoDbName);
 			_pagesCollection = _database.getCollection(webpagesCollectionName);
@@ -82,13 +88,14 @@ public class UpdaterBolt extends BaseRichBolt {
 				_pagesCollection.update(q, o);
 			}
 			else if(type.equals("article")) {
+				
 				Article article = (Article) tuple.getValueByField("content");
 
 				List<MediaItem> mediaItems = article.getMediaItems();
 				
 				DBObject fields = new BasicDBObject("title", article.getTitle());
 				fields.put("text", article.getText());
-				fields.put("quality", article.isLowQuality()?"low":"good");
+				fields.put("quality", article.isLowQuality() ? "low" : "good");
 				fields.put("isArticle", true);
 				fields.put("status", "proccessed");
 				fields.put("media", mediaItems.size());
@@ -97,7 +104,7 @@ public class UpdaterBolt extends BaseRichBolt {
 				
 				WriteResult result = _pagesCollection.update(q, o);
 				if(result.getN()>0) {
-					// OK
+					_collector.emit(tuple(url));
 				}
 				
 				for(MediaItem mediaItem : mediaItems) {

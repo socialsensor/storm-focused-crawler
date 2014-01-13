@@ -216,6 +216,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					System.out.println("==================================================");
 					
 					Article article = getArticle(webPage, content);
+					
 					if(article != null) 
 						_tupleQueue.add(tuple(url, expandedUrl, "article", article));
 					else 

@@ -15,6 +15,7 @@ public class Article implements Serializable {
 	private static final long serialVersionUID = -1660393388232225430L;
 	private String title = null;
 	private String text = null;
+	private String[] tags = null;
 	private boolean isLowQuality = true;
 	
 	List<MediaItem> mediaItems = new ArrayList<MediaItem>();
@@ -34,6 +35,14 @@ public class Article implements Serializable {
 
 	public String getText() {
 		return text;
+	}
+	
+	public String[] getTags() {
+		return tags;
+	}
+
+	public void setTags(String[] tags) {
+		this.tags = tags;
 	}
 	
 	public List<MediaItem> getMediaItems() {
