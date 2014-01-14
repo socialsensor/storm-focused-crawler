@@ -24,6 +24,7 @@ public class WebLinksHandler {
 	 */
 	public static void main(String[] args) {
 		
+		
 		XMLConfiguration config;
 		try {
 			if(args.length == 1)
@@ -35,6 +36,7 @@ public class WebLinksHandler {
 			return;
 		}
 		
+		
 		String redisHost = config.getString("redis.host", "localhost");
 		String redisCollection = config.getString("redis.collection", "MediaItems");
 		
@@ -42,7 +44,9 @@ public class WebLinksHandler {
 		String mongoDbName = config.getString("mongo.db", "Streams");
 		String mongoCollection = config.getString("mongo.collection", "WebPages");
 		String mediaCollection = config.getString("mongo.mediacollection", "MediaItems");
-				
+		String usersCollection = config.getString("mongo.userscollection", "StreamUsers");
+		
+		
 		DBObject query = new BasicDBObject("status", "new");
 		
 		URLExpanderBolt urlExpander;
@@ -59,14 +63,15 @@ public class WebLinksHandler {
 		builder.setBolt("ranker", new RankerBolt(), 1).shuffleGrouping("injector");
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("ranker");
 		builder.setBolt("articleExtraction",  new ArticleExtractionBolt(48), 1).shuffleGrouping("expander", "article");
-		builder.setBolt("mediaExtraction",  new MediaExtractionBolt(), 4).shuffleGrouping("expander", "media");
+		builder.setBolt("mediaExtraction",  new MediaExtractionBolt(), 1).shuffleGrouping("expander", "media");
 		
-		UpdaterBolt updater = new UpdaterBolt(mongoHost, mongoDbName, mongoCollection, mediaCollection, redisHost, redisCollection);
+		UpdaterBolt updater = new UpdaterBolt(mongoHost, mongoDbName, mongoCollection, mediaCollection, usersCollection, redisHost, redisCollection);
 		builder.setBolt("updater", updater , 4).shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
 		
         Config conf = new Config();
         conf.setDebug(false);
         
+       
         try {
         	System.out.println("Submit topology to local cluster");
         	LocalCluster cluster = new LocalCluster();

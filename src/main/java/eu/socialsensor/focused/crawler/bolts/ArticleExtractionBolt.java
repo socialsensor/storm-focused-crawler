@@ -336,19 +336,22 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			// Create image unique id
 			int imageHash = (url.hashCode() & 0x7FFFFFFF);
 			
-			mediaItem.setId("Web::"+pageHash+"_"+imageHash);
+			mediaItem.setId("Web#"+pageHash+"_"+imageHash);
 			mediaItem.setStreamId("Web");
 			mediaItem.setType("image");
 			mediaItem.setThumbnail(url.toString());
 			
 			mediaItem.setPageUrl(base.toString());
 			mediaItem.setRef(webPage.getReference());
-			
+			mediaItem.setUserId("Web#111111111");
 			mediaItem.setShares((long)webPage.getShares());
 			
 			mediaItem.setTitle(alt.trim());
 			if(w != -1 && h != -1) 
 				mediaItem.setSize(w, h);
+			
+			if(webPage.getDate() != null)
+				mediaItem.setPublicationTime(webPage.getDate().getTime());
 			
 			images.add(mediaItem);
 		}
@@ -411,7 +414,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			// Create image unique id
 			int imageHash = (url.hashCode() & 0x7FFFFFFF);
 			
-			mediaItem.setId("Web::"+pageHash+"_"+imageHash);
+			mediaItem.setId("Web#"+pageHash+"_"+imageHash);
 			mediaItem.setStreamId("Web");
 			mediaItem.setType("image");
 			mediaItem.setThumbnail(url.toString());
@@ -419,10 +422,14 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			mediaItem.setPageUrl(baseUri);
 			
 			mediaItem.setShares((long)webPage.getShares());
+			if(webPage.getDate() != null)
+				mediaItem.setPublicationTime(webPage.getDate().getTime());
 			
 			mediaItem.setTitle(alt.trim());
 			if(w != -1 && h != -1) 
 				mediaItem.setSize(w, h);
+			
+			mediaItem.setUserId("Web#111111111");
 			
 			images.add(mediaItem);
 		}

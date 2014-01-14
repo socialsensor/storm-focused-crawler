@@ -16,6 +16,7 @@ import com.mongodb.util.JSON;
 
 import eu.socialsensor.focused.crawler.models.Article;
 import eu.socialsensor.framework.common.domain.MediaItem;
+import eu.socialsensor.framework.common.domain.StreamUser;
 
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -34,23 +35,26 @@ public class UpdaterBolt extends BaseRichBolt {
 	private String mongoDbName;
 	private String webpagesCollectionName;
 	private String mediaCollectionName;
+	private String usersCollectionName;
 	
 	private String redisHost;
 	private String redisChannel;
 	
 	private MongoClient _mongo;
 	private DB _database;
-	private DBCollection _pagesCollection, _mediaCollection;
+	private DBCollection _pagesCollection, _mediaCollection, _usersCollection;
 	
 	private Jedis _publisherJedis;
 	
+	
 
 	public UpdaterBolt(String mongoHost, String mongoDbName, String webpagesCollectionName, String mediaCollectionName, 
-			String redisHost, String redisChannel) {
+			String usersCollectionName, String redisHost, String redisChannel) {
 		this.mongoHost = mongoHost;
 		this.mongoDbName = mongoDbName;
 		this.webpagesCollectionName = webpagesCollectionName;
 		this.mediaCollectionName = mediaCollectionName;
+		this.usersCollectionName = usersCollectionName;
 		
 		this.redisHost = redisHost;
 		this.redisChannel = redisChannel;
@@ -66,6 +70,7 @@ public class UpdaterBolt extends BaseRichBolt {
 			_database = _mongo.getDB(mongoDbName);
 			_pagesCollection = _database.getCollection(webpagesCollectionName);
 			_mediaCollection = _database.getCollection(mediaCollectionName);
+			_usersCollection = _database.getCollection(usersCollectionName);
 			
 			JedisPoolConfig poolConfig = new JedisPoolConfig();
 	        JedisPool jedisPool = new JedisPool(poolConfig, redisHost, 6379, 0);
@@ -93,9 +98,18 @@ public class UpdaterBolt extends BaseRichBolt {
 				MediaItem mediaItem = (MediaItem) tuple.getValueByField("content");
 			
 				if(_mediaCollection.findOne(new BasicDBObject("id", mediaItem.getId()))==null) {
-					DBObject doc = (DBObject) JSON.parse(mediaItem.toJSONString());
-					_mediaCollection.insert(doc);
-					_publisherJedis.publish(redisChannel, mediaItem.toJSONString());
+					StreamUser streamUser = mediaItem.getUser();
+					if(streamUser != null) {
+						if(_usersCollection.findOne(new BasicDBObject("id", streamUser.getId()))==null) {
+							DBObject userDoc = (DBObject) JSON.parse(streamUser.toJSONString());
+							_usersCollection.insert(userDoc);
+						}
+						DBObject doc = (DBObject) JSON.parse(mediaItem.toJSONString());
+						_mediaCollection.insert(doc);
+						if(mediaItem.getType().equals("image")) {
+							_publisherJedis.publish(redisChannel, mediaItem.toJSONString());
+						}
+					}
 				}
 				DBObject o = new BasicDBObject("$set", new BasicDBObject("status", "proccessed"));
 				_pagesCollection.update(q, o);
@@ -109,7 +123,7 @@ public class UpdaterBolt extends BaseRichBolt {
 				fields.put("text", article.getText());
 				fields.put("quality", article.isLowQuality()?"low":"good");
 				fields.put("isArticle", true);
-				fields.put("status", "proccessed");
+				fields.put("status", "processed");
 				fields.put("media", mediaItems.size());
 				
 				DBObject o = new BasicDBObject("$set", fields);
@@ -119,9 +133,18 @@ public class UpdaterBolt extends BaseRichBolt {
 				for(MediaItem mediaItem : mediaItems) {
 					try {
 						if(_mediaCollection.findOne(new BasicDBObject("id", mediaItem.getId()))==null) {
-							DBObject doc = (DBObject) JSON.parse(mediaItem.toJSONString());
-							_mediaCollection.insert(doc);
-							_publisherJedis.publish(redisChannel, mediaItem.toJSONString());
+							StreamUser streamUser = mediaItem.getUser();
+							//if(streamUser != null) {
+								//if(_usersCollection.findOne(new BasicDBObject("id", streamUser.getId()))==null) {
+								//	DBObject userDoc = (DBObject) JSON.parse(streamUser.toJSONString());
+								//	_usersCollection.insert(userDoc);
+								//}
+								DBObject doc = (DBObject) JSON.parse(mediaItem.toJSONString());
+								_mediaCollection.insert(doc);
+								if(mediaItem.getType().equals("image")) {
+									_publisherJedis.publish(redisChannel, mediaItem.toJSONString());
+								}
+							//}
 						}
 					}
 					catch(Exception e) {

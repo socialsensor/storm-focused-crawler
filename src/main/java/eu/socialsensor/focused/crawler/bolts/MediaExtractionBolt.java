@@ -7,6 +7,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import eu.socialsensor.framework.common.domain.MediaItem;
+import eu.socialsensor.framework.common.domain.StreamUser;
 import eu.socialsensor.framework.common.domain.WebPage;
 import eu.socialsensor.framework.retrievers.MediaRetriever;
 import eu.socialsensor.framework.retrievers.dailymotion.DailyMotionMediaRetriever;
@@ -41,9 +42,9 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	
 	private static Pattern instagramPattern = Pattern.compile("http://instagram.com/p/([\\w\\-]+)/");
 	private static Pattern youtubePattern = Pattern.compile("http://www.youtube.com/watch?.*v=([a-zA-Z0-9_]+)(&.+=.+)*");
-	private static Pattern vimeoPattern = Pattern.compile("http://vimeo.com/([0-9]+)/*$");
+	//private static Pattern vimeoPattern = Pattern.compile("http://vimeo.com/([0-9]+)/*$");
 	private static Pattern twitpicPattern = Pattern.compile("http://twitpic.com/([A-Za-z0-9]+)/*.*$");
-	private static Pattern dailymotionPattern = Pattern.compile("http://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
+	//private static Pattern dailymotionPattern = Pattern.compile("http://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
     	declarer.declare(new Fields("url", "expandedUrl", "type", "content"));
@@ -101,18 +102,18 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			mediaId = matcher.group(1);
 			retriever = new YtMediaRetriever(youtubeClientId, youtubeDevKey);
 		}
-		else if((matcher = vimeoPattern.matcher(url)).matches()){
-			mediaId = matcher.group(1);
-			retriever = new VimeoMediaRetriever();
-		}
+		//else if((matcher = vimeoPattern.matcher(url)).matches()){
+		//	mediaId = matcher.group(1);
+		//	retriever = new VimeoMediaRetriever();
+		//}
 		else if((matcher = twitpicPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
 			retriever = new TwitpicMediaRetriever();
 		}
-		else if((matcher = dailymotionPattern.matcher(url)).matches()) {
-			mediaId = matcher.group(1);
-			retriever = new DailyMotionMediaRetriever();
-		}
+		//else if((matcher = dailymotionPattern.matcher(url)).matches()) {
+		//	mediaId = matcher.group(1);
+		//	retriever = new DailyMotionMediaRetriever();
+		//}
 		else {
 			return null;
 		}
@@ -122,7 +123,12 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		
 		MediaItem mediaItem = retriever.getMediaItem(mediaId);
 		if(mediaItem == null) {
-			throw new Exception();
+			throw new Exception("Media item is null!");
+		}
+		StreamUser streamUser = mediaItem.getUser();
+		String userid = mediaItem.getUserId();
+		if(streamUser==null || userid==null) {
+			throw new Exception("Missing user!");
 		}
 		return mediaItem;
 	

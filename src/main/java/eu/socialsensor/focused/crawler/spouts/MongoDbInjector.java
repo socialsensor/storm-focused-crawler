@@ -66,7 +66,7 @@ public class MongoDbInjector extends BaseRichSpout {
 		}
 		
 		_collector = collector;
-		_queue = new LinkedBlockingQueue<WebPage>(5000);
+		_queue = new LinkedBlockingQueue<WebPage>(15000);
 		
 		try {
 			_mongo = new MongoClient(_mongoHost);
@@ -137,22 +137,35 @@ public class MongoDbInjector extends BaseRichSpout {
 
 		public void run() {
 			while(true) {
+				
 				DBCursor cursor = mongoDB.getCollection(mongoCollectionName)
 						.find(query).sort(new BasicDBObject("_id", -1)).limit(100);
-				
-				while(cursor.hasNext()) {			
-					DBObject obj = cursor.next();
-					WebPage webPage = ObjectFactory.createWebPage(obj.toString());
-					if(webPage != null) {
-						//queue.offer(webPage);
-						try {
-							queue.put(webPage);
-							Utils.sleep(50);
-						} catch (InterruptedException e) {
-							Utils.sleep(100);
+				try {
+					while(cursor.hasNext()) {			
+						DBObject obj = cursor.next();
+						WebPage webPage = ObjectFactory.createWebPage(obj.toString());
+						if(webPage != null) {
+							//queue.offer(webPage);
+							try {
+								queue.put(webPage);
+								Utils.sleep(100);
+							} catch (InterruptedException e) {
+								Utils.sleep(100);
+							}
 						}
 					}
 				}
+				catch(Exception e) {
+					e.printStackTrace();
+				}
+				
+				try {
+					if(cursor != null) {
+						cursor.close();
+					}
+				}
+				catch(Exception e) { }
+				
 				System.out.println("Injector: " + _queue.size());
 				Utils.sleep(10000);
 			}
