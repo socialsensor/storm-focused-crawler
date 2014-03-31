@@ -20,7 +20,7 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 
-public class RedisInjector extends BaseRichSpout {
+public class RedisSpout extends BaseRichSpout {
 
 	static final long serialVersionUID = 737015318988609460L;
 
@@ -32,7 +32,7 @@ public class RedisInjector extends BaseRichSpout {
 	LinkedBlockingQueue<String> queue;
 	JedisPool pool;
 
-	public RedisInjector(String host) {
+	public RedisSpout(String host) {
 		this.host = host;
 	}
 

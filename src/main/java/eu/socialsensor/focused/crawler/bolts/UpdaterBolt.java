@@ -84,7 +84,7 @@ public class UpdaterBolt extends BaseRichBolt {
 					DBObject doc = (DBObject) JSON.parse(mediaItem.toJSONString());
 					_mediaCollection.insert(doc);
 				}
-				DBObject o = new BasicDBObject("$set", new BasicDBObject("status", "proccessed"));
+				DBObject o = new BasicDBObject("$set", new BasicDBObject("status", "processed"));
 				_pagesCollection.update(q, o);
 			}
 			else if(type.equals("article")) {

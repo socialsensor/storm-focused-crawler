@@ -23,7 +23,7 @@ import backtype.storm.topology.base.BaseRichSpout;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 
-public class MongoDbInjector extends BaseRichSpout {
+public class MongoDbSpout extends BaseRichSpout {
 
 	/**
 	 * 
@@ -47,7 +47,7 @@ public class MongoDbInjector extends BaseRichSpout {
 	
 	private DBCollection _collection;
 	
-	public MongoDbInjector(String mongoHost, String mongoDbName, String mongoCollectionName, DBObject query) {
+	public MongoDbSpout(String mongoHost, String mongoDbName, String mongoCollectionName, DBObject query) {
 		this._mongoHost = mongoHost;
 		this._mongoDbName = mongoDbName;
 		this._mongoCollectionName = mongoCollectionName;
