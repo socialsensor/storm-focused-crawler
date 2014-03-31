@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<configuration>
+
+    <redis>
+        <host>localhost</host>
+        <channel>localhost</channel>
+    </redis>
+
+    <mongodb>
+        <host>160.40.50.207</host>
+        <db>Prototype</db>
+        <webpages>WebPages</webpages>
+        <media>MediaItems_WP</media>
+    </mongodb>
+
+    <textindex>
+        <host>http://160.40.50.207:8080/solr</host>
+        <collection>WebPagesP</collection>
+    </textindex>
+
+    <topology>
+        <name>FocusedCrawler</name>
+        <local>true</local>
+        <workers>1</workers>
+    </topology>
+
+</configuration>
