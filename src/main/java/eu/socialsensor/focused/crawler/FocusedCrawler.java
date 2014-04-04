@@ -17,7 +17,7 @@ import backtype.storm.LocalCluster;
 import backtype.storm.topology.TopologyBuilder;
 
 
-public class WebLinksHandler {
+public class FocusedCrawler {
 
 	/**
 	 * @param args
