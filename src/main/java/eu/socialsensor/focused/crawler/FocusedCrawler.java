@@ -30,7 +30,7 @@ public class FocusedCrawler {
 			if(args.length == 1)
 				config = new XMLConfiguration(args[0]);
 			else
-				config = new XMLConfiguration("./conf/links.handler.xml");
+				config = new XMLConfiguration("./conf/focused.crawler.xml");
 		}
 		catch(ConfigurationException ex) {
 			return;
@@ -41,10 +41,10 @@ public class FocusedCrawler {
 		String redisCollection = config.getString("redis.collection", "MediaItems");
 		
 		String mongoHost = config.getString("mongo.host", "localhost");
-		String mongoDbName = config.getString("mongo.db", "Streams");
+		String mongoDbName = config.getString("mongo.db", "GreekElections");
 		String mongoCollection = config.getString("mongo.collection", "WebPages");
-		String mediaCollection = config.getString("mongo.mediacollection", "MediaItems");
-		String usersCollection = config.getString("mongo.userscollection", "StreamUsers");
+		String mediaCollection = config.getString("mongo.mediacollection", "MediaItems_WP");
+		String usersCollection = config.getString("mongo.userscollection", "StreamUsers_WP");
 		
 		
 		DBObject query = new BasicDBObject("status", "new");

@@ -6,10 +6,10 @@
         <collection>localhost</collection>
     </redis>
     <mongo>
-        <host>160.40.50.207</host>
-        <db>Prototype</db>
+        <host>xxx.xxx.xxx.xxx</host>
+        <db>GreekElections</db>
         <collection>WebPages</collection>
-        <mediacollection>MediaItems_WP</mediacollection>
-        <userscollection>StreamUsers_WP</userscollection>
+        <mediacollection>MediaItems</mediacollection>
+        <userscollection>StreamUsers</userscollection>
     </mongo>
 </configuration>
