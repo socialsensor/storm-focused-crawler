@@ -42,7 +42,11 @@ public class WebPagesIndexerBolt extends BaseRichBolt {
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, OutputCollector collector) {
 		solrWebPageHandler = SolrWebPageHandler.getInstance(_indexService);
-		webPageDAO = new WebPageDAOImpl(_mongoHost, _mongoDb, _mongoCollection);
+		try {
+			webPageDAO = new WebPageDAOImpl(_mongoHost, _mongoDb, _mongoCollection);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void execute(Tuple tuple) {
@@ -58,7 +62,6 @@ public class WebPagesIndexerBolt extends BaseRichBolt {
 		catch(Exception ex) {
 			ex.printStackTrace();
 		}
-		
 	}
 
 }

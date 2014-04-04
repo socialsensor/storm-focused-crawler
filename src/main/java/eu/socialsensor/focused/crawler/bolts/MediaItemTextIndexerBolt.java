@@ -37,7 +37,12 @@ public class MediaItemTextIndexerBolt extends BaseRichBolt {
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, OutputCollector collector) {
-		solrMediaHandler = SolrMediaItemHandler.getInstance(hostname+"/"+service+"/"+collection);
+		try {
+			solrMediaHandler = SolrMediaItemHandler.getInstance(hostname+"/"+service+"/"+collection);
+		} catch (Exception e) {
+			e.printStackTrace();
+			solrMediaHandler = null;
+		}
 	}
 
 	public void execute(Tuple tuple) {
@@ -46,7 +51,7 @@ public class MediaItemTextIndexerBolt extends BaseRichBolt {
 			String url = tuple.getStringByField("url");
 			String type = tuple.getStringByField("type");
 		
-			if(url == null || type == null)
+			if(url == null || type == null || solrMediaHandler==null)
 				return;
 		
 			if(type.equals("media")) {
