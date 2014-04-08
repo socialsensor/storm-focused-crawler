@@ -1,4 +1,4 @@
-package eu.socialsensor.focused.crawler.bolts;
+package eu.socialsensor.focused.crawler.bolts.webpages;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;

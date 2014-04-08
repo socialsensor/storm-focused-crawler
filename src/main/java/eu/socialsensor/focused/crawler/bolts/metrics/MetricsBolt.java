@@ -1,4 +1,4 @@
-package eu.socialsensor.focused.crawler.bolts;
+package eu.socialsensor.focused.crawler.bolts.metrics;
 
 import java.util.Map;
 

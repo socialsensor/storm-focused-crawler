@@ -1,4 +1,4 @@
-package eu.socialsensor.focused.crawler.bolts;
+package eu.socialsensor.focused.crawler.bolts.webpages;
 
 import static backtype.storm.utils.Utils.tuple;
 
@@ -8,7 +8,7 @@ import java.util.PriorityQueue;
 
 import eu.socialsensor.focused.crawler.models.RankedWebPage;
 import eu.socialsensor.framework.common.domain.WebPage;
-
+import eu.socialsensor.framework.common.factories.ObjectFactory;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -24,11 +24,17 @@ public class RankerBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = 1L;
 
-	private static long avgTimeDiff = 5 * 60 * 1000; // 5 minutes 
+	private static long avgTimeDiff = 10 * 60 * 1000; // 10 minutes 
 	
 	private OutputCollector _collector;
 	private PriorityQueue<RankedWebPage> _queue;
 
+	private String inputField;
+
+	public RankerBolt(String inputField) {
+		this.inputField = inputField;
+	}
+	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
 		this._collector = collector;
@@ -42,24 +48,24 @@ public class RankerBolt extends BaseRichBolt {
 	}
 
 	public void execute(Tuple input) {
-		WebPage webPage = (WebPage) input.getValueByField("webPage");
-		if(webPage != null) {
-			double score = getScore(webPage);
-			RankedWebPage rankedWebPage = new RankedWebPage(webPage, score);
+		try {
+			String json = input.getStringByField(inputField);
+			WebPage webPage = ObjectFactory.createWebPage(json);
+			if(webPage != null) {
+				double score = getScore(webPage);
+				RankedWebPage rankedWebPage = new RankedWebPage(webPage, score);
 			
-			try {
 				synchronized(_queue) {
 					_queue.offer(rankedWebPage);
 				}
 			}
-			catch(Exception e) {
+		} catch(Exception e) {
 				System.out.println("Exception: "+e.getMessage());
-			}
-		}	
+		}
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields("webPage"));
+		declarer.declare(new Fields(inputField));
 	}
 
 	private double getScore(WebPage wp) {
@@ -99,8 +105,6 @@ public class RankerBolt extends BaseRichBolt {
 					}
 					else {
 						WebPage webPage = rankedWebPage.getWebPage();
-//						System.out.println(webPage.toJSONString());
-//						System.out.println(rankedWebPage.toString() + " queue: " + _queue.size());
 						synchronized(_collector) {
 							_collector.emit(tuple(webPage));
 						}

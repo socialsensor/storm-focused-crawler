@@ -5,9 +5,6 @@ import static backtype.storm.utils.Utils.tuple;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import eu.socialsensor.framework.common.domain.WebPage;
-import eu.socialsensor.framework.common.factories.ObjectFactory;
-
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -24,7 +21,7 @@ public class RedisSpout extends BaseRichSpout {
 
 	static final long serialVersionUID = 737015318988609460L;
 
-	static final String webPagesChannel = "WebPages";
+	private String channel;
 	
 	SpoutOutputCollector _collector;
 	final String host;
@@ -32,8 +29,9 @@ public class RedisSpout extends BaseRichSpout {
 	LinkedBlockingQueue<String> queue;
 	JedisPool pool;
 
-	public RedisSpout(String host) {
+	public RedisSpout(String host, String channel) {
 		this.host = host;
+		this.channel = channel;
 	}
 
 	class ListenerThread extends Thread {
@@ -74,7 +72,7 @@ public class RedisSpout extends BaseRichSpout {
 
 			Jedis jedis = pool.getResource();
 			try {
-				jedis.subscribe(listener, webPagesChannel);
+				jedis.subscribe(listener, channel);
 			} finally {
 				pool.returnResource(jedis);
 			}
@@ -83,8 +81,8 @@ public class RedisSpout extends BaseRichSpout {
 
 	public void open(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, SpoutOutputCollector collector) {
 		_collector = collector;
-		queue = new LinkedBlockingQueue<String>(5000);
-		pool = new JedisPool(new JedisPoolConfig(),host);
+		queue = new LinkedBlockingQueue<String>(10000);
+		pool = new JedisPool(new JedisPoolConfig(), host);
 
 		ListenerThread listener = new ListenerThread(queue, pool);
 		listener.start();
@@ -100,8 +98,7 @@ public class RedisSpout extends BaseRichSpout {
         if(ret == null) {
             Utils.sleep(50);
         } else {
-        	WebPage webPage = ObjectFactory.createWebPage(ret);
-            _collector.emit(tuple(webPage));            
+            _collector.emit(tuple(ret));            
         }
 	}
 
@@ -114,7 +111,7 @@ public class RedisSpout extends BaseRichSpout {
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields("webPage"));
+		declarer.declare(new Fields(channel));
 	}
 
 	public boolean isDistributed() {

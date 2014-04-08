@@ -8,11 +8,11 @@ import org.apache.commons.configuration.XMLConfiguration;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 
-import eu.socialsensor.focused.crawler.bolts.ArticleExtractionBolt;
-import eu.socialsensor.focused.crawler.bolts.MediaExtractionBolt;
-import eu.socialsensor.focused.crawler.bolts.RankerBolt;
-import eu.socialsensor.focused.crawler.bolts.URLExpanderBolt;
-import eu.socialsensor.focused.crawler.bolts.UpdaterBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.URLExpanderBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.UpdaterBolt;
 import eu.socialsensor.focused.crawler.spouts.MongoDbSpout;
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
@@ -43,14 +43,14 @@ public class FocusedCrawler {
 		
 		//String redisHost = config.getString("redis.host");
 		
-		String mongodbHostname = config.getString("mongodb.host", "160.40.50.207");
+		String mongodbHostname = config.getString("mongodb.host", "xxx.xxx.xxx.xxx");
 		String mongoDBName = config.getString("mongodb.db", "Prototype");
 		String webPagesCollection = config.getString("mongodb.webpages", "WebPages");
 		String mediaCollection = config.getString("mongodb.media", "MediaItems_WP");
 		
 		DBObject query = new BasicDBObject("status", "new");
 		
-		//String textIndexHostname = config.getString("textindex.host", "160.40.50.207:8080/solr");
+		//String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
 		//String textIndexCollection = config.getString("textindex.collection", "WebPagesP");
 		
 		URLExpanderBolt urlExpander;
@@ -64,7 +64,7 @@ public class FocusedCrawler {
 		TopologyBuilder builder = new TopologyBuilder();
 		builder.setSpout("injector", new MongoDbSpout(mongodbHostname, mongoDBName, webPagesCollection, query), 1);
         
-		builder.setBolt("ranker", new RankerBolt(), 1).shuffleGrouping("injector");
+		builder.setBolt("ranker", new RankerBolt("WebPages"), 1).shuffleGrouping("injector");
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("ranker");
 		builder.setBolt("articleExtraction",  new ArticleExtractionBolt(60), 1).shuffleGrouping("expander", "article");
 		builder.setBolt("mediaExtraction",  new MediaExtractionBolt(), 4).shuffleGrouping("expander", "media");

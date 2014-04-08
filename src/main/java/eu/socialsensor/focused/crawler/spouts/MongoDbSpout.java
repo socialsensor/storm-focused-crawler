@@ -11,9 +11,6 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
-import eu.socialsensor.framework.common.domain.WebPage;
-import eu.socialsensor.framework.common.factories.ObjectFactory;
-
 import static backtype.storm.utils.Utils.tuple;
 
 import backtype.storm.spout.SpoutOutputCollector;
@@ -41,7 +38,7 @@ public class MongoDbSpout extends BaseRichSpout {
 
 	private DBObject _query;
 
-	private LinkedBlockingQueue<WebPage> _queue;
+	private LinkedBlockingQueue<DBObject> _queue;
 
 	private CursorThread _listener = null;
 	
@@ -66,7 +63,7 @@ public class MongoDbSpout extends BaseRichSpout {
 		}
 		
 		_collector = collector;
-		_queue = new LinkedBlockingQueue<WebPage>(5000);
+		_queue = new LinkedBlockingQueue<DBObject>(10000);
 		
 		try {
 			_mongo = new MongoClient(_mongoHost);
@@ -82,24 +79,16 @@ public class MongoDbSpout extends BaseRichSpout {
 
 	public void nextTuple() {
 		
-//		WebPage webPage = null;
-//		try {
-//			webPage = _queue.take();
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//			return;
-//		}
-		
-		WebPage webPage = _queue.poll();
-		if(webPage == null) {
+		DBObject obj = _queue.poll();
+		if(obj == null) {
             Utils.sleep(100);
         } else {    	
         	synchronized(_collector) {
-        		_collector.emit(tuple(webPage));
+        		_collector.emit(tuple(obj.toString()));
         	}
         	
     		_collection.update(
-    			new BasicDBObject("url", webPage.getUrl()),
+    			new BasicDBObject("_id", obj.get("_id")),
     			new BasicDBObject("$set", new BasicDBObject("status", "injected"))
     		);
         }
@@ -107,7 +96,7 @@ public class MongoDbSpout extends BaseRichSpout {
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields("webPage"));	
+		declarer.declare(new Fields(_mongoCollectionName));	
 	}
 	
 	@Override
@@ -122,12 +111,12 @@ public class MongoDbSpout extends BaseRichSpout {
     
 	class CursorThread extends Thread {
 
-		LinkedBlockingQueue<WebPage> queue;
+		LinkedBlockingQueue<DBObject> queue;
 		String mongoCollectionName;
 		DB mongoDB;
 		DBObject query;
 		
-		public CursorThread(LinkedBlockingQueue<WebPage> queue, DB mongoDB, String mongoCollectionName, DBObject query) {
+		public CursorThread(LinkedBlockingQueue<DBObject> queue, DB mongoDB, String mongoCollectionName, DBObject query) {
 			
 			this.queue = queue;
 			this.mongoDB = mongoDB;
@@ -137,17 +126,14 @@ public class MongoDbSpout extends BaseRichSpout {
 
 		public void run() {
 			while(true) {
-				DBCursor cursor = mongoDB.getCollection(mongoCollectionName)
-						.find(query).sort(new BasicDBObject("_id", -1)).limit(100);
+				DBCursor cursor = mongoDB.getCollection(mongoCollectionName).find(query)
+						.sort(new BasicDBObject("_id", -1)).limit(100);
 				
 				while(cursor.hasNext()) {			
 					DBObject obj = cursor.next();
-					WebPage webPage = ObjectFactory.createWebPage(obj.toString());
-					if(webPage != null) {
-						//queue.offer(webPage);
+					if(obj != null) {
 						try {
-							queue.put(webPage);
-							Utils.sleep(50);
+							queue.put(obj);
 						} catch (InterruptedException e) {
 							Utils.sleep(100);
 						}
@@ -160,6 +146,7 @@ public class MongoDbSpout extends BaseRichSpout {
 	}
 	
 	public void reset(String host, String dbName, String collectionName) throws UnknownHostException {
+		
 		MongoClient client = new MongoClient(host);
 		DB db = client.getDB(dbName);
 		DBCollection collection = db.getCollection(collectionName);
@@ -167,6 +154,7 @@ public class MongoDbSpout extends BaseRichSpout {
 		DBObject q = new BasicDBObject("status", "injected");
 		DBObject o = new BasicDBObject("$set", new BasicDBObject("status", "new"));
 		collection.update(q, o, false, true);
+		
 	}
 	
 	

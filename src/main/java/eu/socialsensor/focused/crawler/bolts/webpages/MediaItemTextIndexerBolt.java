@@ -1,4 +1,4 @@
-package eu.socialsensor.focused.crawler.bolts;
+package eu.socialsensor.focused.crawler.bolts.webpages;
 
 import java.util.List;
 import java.util.Map;
@@ -15,7 +15,6 @@ import backtype.storm.tuple.Tuple;
 
 public class MediaItemTextIndexerBolt extends BaseRichBolt {
 
-	
 	/**
 	 * 
 	 */
