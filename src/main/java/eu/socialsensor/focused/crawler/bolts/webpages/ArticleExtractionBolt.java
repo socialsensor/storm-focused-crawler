@@ -212,13 +212,19 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					InputStream input = entity.getContent();
 					byte[] content = IOUtils.toByteArray(input);
 					
-					System.out.println("Content length: " + content.length);
-					System.out.println("==================================================");
+					//System.out.println("Content length: " + content.length);
+					//System.out.println("==================================================");
 					
 					Article article = getArticle(webPage, content);
 					
-					if(article != null) 
+					if(article != null) { 
+						List<MediaItem> mediaItems = article.getMediaItems();
+						for(MediaItem mi : mediaItems) {
+							System.out.print(mi.toJSONString());
+						}
+						
 						_tupleQueue.add(tuple(url, expandedUrl, "article", article));
+					}
 					else 
 						_tupleQueue.add(tuple(url, expandedUrl, "exception", "Article is null!"));
 					
@@ -337,7 +343,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			// Create image unique id
 			int imageHash = (url.hashCode() & 0x7FFFFFFF);
 			
-			mediaItem.setId("Web::"+pageHash+"_"+imageHash);
+			mediaItem.setId("Web#" + imageHash);
 			mediaItem.setStreamId("Web");
 			mediaItem.setType("image");
 			mediaItem.setThumbnail(url.toString());

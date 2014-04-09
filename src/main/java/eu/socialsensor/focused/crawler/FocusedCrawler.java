@@ -14,12 +14,14 @@ import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.URLExpanderBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.UpdaterBolt;
 import eu.socialsensor.focused.crawler.spouts.MongoDbSpout;
+import eu.socialsensor.focused.crawler.spouts.RedisSpout;
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.InvalidTopologyException;
 import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.topology.base.BaseRichSpout;
 
 public class FocusedCrawler {
 
@@ -41,36 +43,40 @@ public class FocusedCrawler {
 			return;
 		}
 		
-		//String redisHost = config.getString("redis.host");
+		String redisHost = config.getString("redis.host", "xxx.xxx.xxx.xxx");
 		
 		String mongodbHostname = config.getString("mongodb.host", "xxx.xxx.xxx.xxx");
 		String mongoDBName = config.getString("mongodb.db", "Prototype");
 		String webPagesCollection = config.getString("mongodb.webpages", "WebPages");
 		String mediaCollection = config.getString("mongodb.media", "MediaItems_WP");
 		
-		DBObject query = new BasicDBObject("status", "new");
+		//DBObject query = new BasicDBObject("status", "new");
 		
 		//String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
 		//String textIndexCollection = config.getString("textindex.collection", "WebPagesP");
 		
 		URLExpanderBolt urlExpander;
 		try {
-			urlExpander = new URLExpanderBolt(mongodbHostname, mongoDBName, webPagesCollection);
+			urlExpander = new URLExpanderBolt(mongodbHostname, mongoDBName, webPagesCollection, "webpages");
 		} catch (Exception e) {
+			e.printStackTrace();
 			return;
 		}
 		
+		//BaseRichSpout spout = new MongoDbSpout(mongodbHostname, mongoDBName, webPagesCollection, query);
+		BaseRichSpout spout = new RedisSpout(redisHost, "webpages", "url");
+		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
-		builder.setSpout("injector", new MongoDbSpout(mongodbHostname, mongoDBName, webPagesCollection, query), 1);
+		builder.setSpout("injector", spout, 1);
         
-		builder.setBolt("ranker", new RankerBolt("WebPages"), 1).shuffleGrouping("injector");
+		builder.setBolt("ranker", new RankerBolt("webpages"), 4).shuffleGrouping("injector");
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("ranker");
-		builder.setBolt("articleExtraction",  new ArticleExtractionBolt(60), 1).shuffleGrouping("expander", "article");
-		builder.setBolt("mediaExtraction",  new MediaExtractionBolt(), 4).shuffleGrouping("expander", "media");
+		builder.setBolt("articleExtraction",  new ArticleExtractionBolt(48), 1).shuffleGrouping("expander", "article");
+		//builder.setBolt("mediaExtraction",  new MediaExtractionBolt(), 4).shuffleGrouping("expander", "media");
 		
-		builder.setBolt("updater",  new UpdaterBolt(mongodbHostname, mongoDBName, webPagesCollection, mediaCollection), 4)
-			.shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
+		//builder.setBolt("updater",  new UpdaterBolt(mongodbHostname, mongoDBName, webPagesCollection, mediaCollection), 4)
+		//	.shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
 		
 		//String textIndexService = textIndexHostname + "/" + textIndexCollection;
 		//WebPagesIndexerBolt indexer = new WebPagesIndexerBolt(textIndexService, mongodbHostname, mongoDBName, webPagesCollection);

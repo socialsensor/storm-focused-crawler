@@ -2,18 +2,25 @@ package eu.socialsensor.focused.crawler.spouts;
 
 import static backtype.storm.utils.Utils.tuple;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import com.mongodb.DBObject;
+import com.mongodb.util.JSON;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.JedisPubSub;
-
+import backtype.storm.Config;
+import backtype.storm.LocalCluster;
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.base.BaseRichSpout;
 import backtype.storm.topology.OutputFieldsDeclarer;
+import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 
@@ -29,16 +36,21 @@ public class RedisSpout extends BaseRichSpout {
 	LinkedBlockingQueue<String> queue;
 	JedisPool pool;
 
-	public RedisSpout(String host, String channel) {
+	private String idField;
+
+	public RedisSpout(String host, String channel, String idField) {
 		this.host = host;
 		this.channel = channel;
+		this.idField = idField;
 	}
 
 	class ListenerThread extends Thread {
-		LinkedBlockingQueue<String> queue;
-		JedisPool pool;
-		String pattern;
+		
+		private LinkedBlockingQueue<String> queue;
+		private JedisPool pool;
 
+		private Set<String> ids = new HashSet<String>();
+			
 		public ListenerThread(LinkedBlockingQueue<String> queue, JedisPool pool) {
 			this.queue = queue;
 			this.pool = pool;
@@ -50,7 +62,17 @@ public class RedisSpout extends BaseRichSpout {
 
 				@Override
 				public void onMessage(String channel, String message) {
-					queue.offer(message);
+					
+					
+					DBObject obj = (DBObject) JSON.parse(message);
+					String id = (String) obj.get(idField);
+					if(!ids.contains(id)) {
+						queue.offer(message);
+						ids.add(id);
+						if(ids.size() % 50 == 0) {
+							System.out.println(ids.size() + " messages received.");
+						}
+					}
 				}
 
 				@Override
@@ -98,6 +120,7 @@ public class RedisSpout extends BaseRichSpout {
         if(ret == null) {
             Utils.sleep(50);
         } else {
+        	//System.out.println(ret);
             _collector.emit(tuple(ret));            
         }
 	}
@@ -117,4 +140,23 @@ public class RedisSpout extends BaseRichSpout {
 	public boolean isDistributed() {
 		return false;
 	}
+	
+	public static void main(String...args) {
+		
+		/* */
+		RedisSpout spout = new RedisSpout("xxx.xxx.xxx.xxx", "webpages", "url");
+		
+		TopologyBuilder builder = new TopologyBuilder();
+		builder.setSpout("injector", spout, 1);
+		
+		Config conf = new Config();
+        conf.setDebug(false);
+
+		System.out.println("Run topology in local mode");
+		LocalCluster cluster = new LocalCluster();
+		cluster.submitTopology("redis-spout-test", conf, builder.createTopology());
+		
+	}
+	
+	
 }

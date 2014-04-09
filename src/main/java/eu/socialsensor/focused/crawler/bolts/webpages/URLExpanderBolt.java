@@ -15,9 +15,7 @@ import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
 
 import eu.socialsensor.framework.common.domain.WebPage;
-
 import static backtype.storm.utils.Utils.tuple;
-
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -43,14 +41,18 @@ public class URLExpanderBolt extends BaseRichBolt {
 	private String mongoDbName;
 	private String mongoHost;
 	
-	private int max_redirects = 3;
+	private static int max_redirects = 4;
 	
 	private Set<String> targets = new HashSet<String>();
+
+	private String inputField;
 	
-	public URLExpanderBolt(String mongoHost, String mongoDbName, String mongoCollectionName) throws Exception {
+	public URLExpanderBolt(String mongoHost, String mongoDbName, String mongoCollectionName, String inputField) throws Exception {
 		this.mongoHost = mongoHost;
 		this.mongoDbName = mongoDbName;
 		this.mongoCollectionName = mongoCollectionName;
+		
+		this.inputField = inputField;
 		
 		targets.add("vimeo.com");
 		targets.add("instagram.com");
@@ -74,7 +76,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 	}
 
 	public void execute(Tuple tuple) {	
-		WebPage webPage = (WebPage) tuple.getValueByField("webPage");
+		WebPage webPage = (WebPage) tuple.getValueByField(inputField);
 		if(webPage != null) {
 			try {
 				String url = webPage.getUrl();
@@ -172,7 +174,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 		declarer.declareStream("article", new Fields("webPage"));
 	}
 
-	public String expand(String shortUrl) throws IOException {
+	public static String expand(String shortUrl) throws IOException {
 		int redirects = 0;
 		HttpURLConnection connection;
 		while(true && redirects < max_redirects) {
@@ -180,7 +182,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 				URL url = new URL(shortUrl);
 				connection = (HttpURLConnection) url.openConnection(Proxy.NO_PROXY); 
 				connection.setInstanceFollowRedirects(false);
-				connection.setReadTimeout(1000);
+				connection.setReadTimeout(2000);
 				connection.connect();
 				String expandedURL = connection.getHeaderField("Location");
 				if(expandedURL == null) {
@@ -197,5 +199,4 @@ public class URLExpanderBolt extends BaseRichBolt {
 		}
 		return shortUrl;
     }
-
 }

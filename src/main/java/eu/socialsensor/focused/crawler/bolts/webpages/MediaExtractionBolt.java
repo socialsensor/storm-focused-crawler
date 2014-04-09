@@ -31,11 +31,11 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	
 	private OutputCollector _collector;
 	
-	private static String instagramToken = "342704836.5b9e1e6.503a35185da54224adaa76161a573e71";
-	private static String instagramSecret = "e53597da6d7749d2a944651bbe6e6f2a";
+	private static String instagramToken = "";
+	private static String instagramSecret = "";
 	
-	private static String youtubeClientId = "manosetro";
-	private static String youtubeDevKey = "AI39si6DMfJRhrIFvJRv0qFubHHQypIwjkD-W7tsjLJArVKn9iR-QoT8t-UijtITl4TuyHzK-cxqDDCkCBoJB-seakq1gbt1iQ";
+	private static String youtubeClientId = "";
+	private static String youtubeDevKey = "";
 	
 	
 	private static Pattern instagramPattern = Pattern.compile("http://instagram.com/p/([\\w\\-]+)/");
@@ -74,6 +74,8 @@ public class MediaExtractionBolt extends BaseRichBolt {
 				if(mediaItem != null) { 
 					mediaItem.setPageUrl(expandedUrl);
 					_collector.emit(tuple(url, expandedUrl, "media", mediaItem));
+					
+					System.out.println(mediaItem.toJSONString());
 				}
 				else 
 				_collector.emit(tuple(url, expandedUrl, "exception", "Cannot find any media item"));
