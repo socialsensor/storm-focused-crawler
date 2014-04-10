@@ -4,22 +4,20 @@ import java.net.UnknownHostException;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
-
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBObject;
+import org.apache.log4j.Logger;
 
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.URLExpanderBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.UpdaterBolt;
-import eu.socialsensor.focused.crawler.spouts.MongoDbSpout;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.InvalidTopologyException;
+import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.topology.base.BaseRichSpout;
 
@@ -31,6 +29,7 @@ public class FocusedCrawler {
 	 */
 	public static void main(String[] args) throws UnknownHostException {
 		
+		Logger logger = Logger.getLogger(FocusedCrawler.class);
 		
 		XMLConfiguration config;
 		try {
@@ -40,6 +39,7 @@ public class FocusedCrawler {
 				config = new XMLConfiguration("./conf/focused.crawler.xml");
 		}
 		catch(ConfigurationException ex) {
+			logger.error(ex);
 			return;
 		}
 		
@@ -48,35 +48,39 @@ public class FocusedCrawler {
 		String mongodbHostname = config.getString("mongodb.host", "xxx.xxx.xxx.xxx");
 		String mongoDBName = config.getString("mongodb.db", "Prototype");
 		String webPagesCollection = config.getString("mongodb.webpages", "WebPages");
-		String mediaCollection = config.getString("mongodb.media", "MediaItems_WP");
-		
-		//DBObject query = new BasicDBObject("status", "new");
+		String mediaItemsCollection = config.getString("mongodb.media", "MediaItems_WP");
 		
 		//String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
 		//String textIndexCollection = config.getString("textindex.collection", "WebPagesP");
 		
-		URLExpanderBolt urlExpander;
+		BaseRichSpout spout;
+		IRichBolt urlExpander, ranker, articleExtraction, mediaExtraction, updater;
 		try {
+			//BaseRichSpout spout = new MongoDbSpout(mongodbHostname, mongoDBName, webPagesCollection, query);
+			spout = new RedisSpout(redisHost, "webpages", "url");
+			
 			urlExpander = new URLExpanderBolt(mongodbHostname, mongoDBName, webPagesCollection, "webpages");
+			ranker = new RankerBolt("webpages");
+			articleExtraction = new ArticleExtractionBolt(48);
+			mediaExtraction = new MediaExtractionBolt();
+			updater = new UpdaterBolt(mongodbHostname, mongoDBName, webPagesCollection, mediaItemsCollection);
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(e);
 			return;
 		}
 		
-		//BaseRichSpout spout = new MongoDbSpout(mongodbHostname, mongoDBName, webPagesCollection, query);
-		BaseRichSpout spout = new RedisSpout(redisHost, "webpages", "url");
+		
 		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
 		builder.setSpout("injector", spout, 1);
         
-		builder.setBolt("ranker", new RankerBolt("webpages"), 4).shuffleGrouping("injector");
+		builder.setBolt("ranker", ranker, 4).shuffleGrouping("injector");
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("ranker");
-		builder.setBolt("articleExtraction",  new ArticleExtractionBolt(48), 1).shuffleGrouping("expander", "article");
-		//builder.setBolt("mediaExtraction",  new MediaExtractionBolt(), 4).shuffleGrouping("expander", "media");
+		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "article");
+		builder.setBolt("mediaExtraction", mediaExtraction, 4).shuffleGrouping("expander", "media");
 		
-		//builder.setBolt("updater",  new UpdaterBolt(mongodbHostname, mongoDBName, webPagesCollection, mediaCollection), 4)
-		//	.shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
+		builder.setBolt("updater", updater, 4).shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
 		
 		//String textIndexService = textIndexHostname + "/" + textIndexCollection;
 		//WebPagesIndexerBolt indexer = new WebPagesIndexerBolt(textIndexService, mongodbHostname, mongoDBName, webPagesCollection);
@@ -98,15 +102,15 @@ public class FocusedCrawler {
 				StormSubmitter.submitTopology(name, conf, builder.createTopology());
 			}
 			catch(NumberFormatException e) {
-				System.out.println(e.getMessage());
+				logger.error(e);
 			} catch (AlreadyAliveException e) {
-				e.printStackTrace();
+				logger.error(e);
 			} catch (InvalidTopologyException e) {
-				e.printStackTrace();
+				logger.error(e);
 			}
 			
 		} else {
-			System.out.println("Run topology in local mode");
+			logger.info("Run topology in local mode");
 			LocalCluster cluster = new LocalCluster();
 			cluster.submitTopology(name, conf, builder.createTopology());
 		}
