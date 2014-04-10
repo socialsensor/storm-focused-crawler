@@ -8,7 +8,6 @@ import eu.socialsensor.focused.crawler.bolts.media.MediaRankerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.media.VisualIndexerBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
-
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
@@ -37,14 +36,15 @@ public class VisualIndexer {
 			return;
 		}
 		
-		String redisHost = config.getString("redis.host", "xxx.xxx.xxx.xxx");
+		String redisHost = config.getString("redis.hostname", "xxx.xxx.xxx.xxx");
 		
-		String mongoHost = config.getString("mongodb.host", "xxx.xxx.xxx.xxx");
-		String mongoDbName = config.getString("mongodb.db");
-		String mediaItemsCollection = config.getString("mongodb.media", "MediaItems");
-		String clustersCollection = config.getString("mongodb.clusters", "MediaClusters");
+		String mongoHost = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
+		String mediaItemsDB = config.getString("mongodb.mediaItemsDB", "Prototype");
+		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems");
+		String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
+		String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
 		
-		String indexHostname = config.getString("visualindex.host");
+		String indexHostname = config.getString("visualindex.hostname");
 		String indexCollection = config.getString("visualindex.collection");
 		
 		String learningFiles = config.getString("visualindex.learningfiles");
@@ -66,7 +66,7 @@ public class VisualIndexer {
 		try {
 			visualIndexer = new VisualIndexerBolt(indexHostname, indexCollection, codebookFiles, pcaFile);
 			ranker = new MediaRankerBolt("media");
-			updater = new MediaUpdaterBolt(mongoHost, mongoDbName, mediaItemsCollection, clustersCollection, indexHostname, indexCollection);
+			updater = new MediaUpdaterBolt(mongoHost, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, indexHostname, indexCollection);
 		} catch (Exception e) {
 			return;
 		}

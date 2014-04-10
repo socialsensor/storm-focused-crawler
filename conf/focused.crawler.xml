@@ -9,14 +9,20 @@
 
     <mongodb>
         <hostname>xxx.xxx.xxx.xxx</hostname>
-        <webPagesDB>Prototype</webPagesDB>
-        <webpagesCollection>WebPages</webpagesCollection>
-        <mediaItemsDB>Prototype</mediaItemsDB>
-        <mediaItemsCollection>MediaItems_WP</mediaItemsCollection>
-        <clustersDB>Prototype</clustersDB>
-        <clustersCollection>MediaClusters</clustersCollection>
+        <webPagesDB>webpages.db</webPagesDB>
+        <webpagesCollection>webpages.collection</webpagesCollection>
+        <mediaItemsDB>mediaitems.db</mediaItemsDB>
+        <mediaItemsCollection>mediaitems.collection</mediaItemsCollection>
+        <clustersDB>clusters.db</clustersDB>
+        <clustersCollection>clusters.collection</clustersCollection>
     </mongodb>
 
+	<visualindex>
+        <learningfiles>./</learningfiles>
+        <hostname>xxx.xxx.xxx.xxx:xxxx</<hostname>
+        <collection>media</collection>
+    </visualindex>
+    
     <textindex>
         <host>http://xxx.xxx.xxx.xxx:8080/solr</host>
         <collection>WebPages</collection>

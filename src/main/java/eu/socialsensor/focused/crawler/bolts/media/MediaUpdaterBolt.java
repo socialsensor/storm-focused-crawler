@@ -7,16 +7,18 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
 
+import org.apache.log4j.Logger;
+
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
+import eu.socialsensor.focused.crawler.VisualIndexer;
 import eu.socialsensor.framework.client.search.visual.JsonResultSet;
 import eu.socialsensor.framework.client.search.visual.JsonResultSet.JsonResult;
 import eu.socialsensor.framework.client.search.visual.VisualIndexHandler;
-
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -31,14 +33,18 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
+	Logger logger = Logger.getLogger(MediaUpdaterBolt.class);
+	
 	private String mongoHost;
-	private String mongoDbName;
-	private String mongoCollectionName;
+	
+	private String mediaItemsDbName;
+	private String mediaItemsCollectionName;
+	
+	private String clustersDbName;
 	private String clustersCollectionName;
 	
 	private MongoClient _mongo;
-	private DB _database;
-	private DBCollection _collection;
+	private DBCollection _mediaItemsCollection;
 	private DBCollection _clustersCollection;
 
 	private Queue<String> _mQ = new LinkedList<String>();
@@ -48,11 +54,12 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	private String webServiceHost;
 	private String indexCollection;
 
-	public MediaUpdaterBolt(String mongoHost, String mongoDbName, String mongoCollectionName, String clustersCollectionName,
-			String webServiceHost, String indexCollection) {
+	public MediaUpdaterBolt(String mongoHost, String mediaItemsDbName, String mediaItemsCollectionName, String clustersCollectionName,
+			String clustersDbName, String webServiceHost, String indexCollection) {
 		this.mongoHost = mongoHost;
-		this.mongoDbName = mongoDbName;
-		this.mongoCollectionName = mongoCollectionName;
+		this.mediaItemsDbName = mediaItemsDbName;
+		this.mediaItemsCollectionName = mediaItemsCollectionName;
+		this.clustersDbName = clustersDbName;
 		this.clustersCollectionName = clustersCollectionName;
 		
 		this.webServiceHost = webServiceHost; 
@@ -67,8 +74,10 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 		
 		try {
 			_mongo = new MongoClient(mongoHost);
-			_database = _mongo.getDB(mongoDbName);
-			_collection = _database.getCollection(mongoCollectionName);
+			DB _database = _mongo.getDB(mediaItemsDbName);
+			_mediaItemsCollection = _database.getCollection(mediaItemsCollectionName);
+			
+			_database = _mongo.getDB(clustersDbName);
 			_clustersCollection = _database.getCollection(clustersCollectionName);
 			
 			_visualIndex = new VisualIndexHandler(webServiceHost, indexCollection);
@@ -77,7 +86,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 			thread.start();
 			
 		} catch (Exception e) {
-			
+			logger.error(e);
 		}
 		
 	}
@@ -88,7 +97,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 		Integer width = tuple.getIntegerByField("width");
 		Integer height = tuple.getIntegerByField("height");
 	
-		if(_collection != null) {
+		if(_mediaItemsCollection != null) {
 			DBObject q = new BasicDBObject("id", id);
 			
 			BasicDBObject f = new BasicDBObject("vIndexed", indexed);
@@ -104,7 +113,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 			
 			DBObject o = new BasicDBObject("$set", f);
 			
-			_collection.update(q, o, false, true);
+			_mediaItemsCollection.update(q, o, false, true);
 			_mQ.offer(id);
 		}
 	}   
@@ -129,6 +138,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 						Thread.sleep(1000);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
+						logger.error(e);
 					}
 				}
 				else {
@@ -141,7 +151,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 							nearestId = results.get(1).getId();
 						System.out.println(id + " -> " +nearestId);
 					
-						DBObject obj = _collection.findOne(new BasicDBObject("id", nearestId));
+						DBObject obj = _mediaItemsCollection.findOne(new BasicDBObject("id", nearestId));
 						if(obj != null && obj.containsField("clusterId")) {
 							
 							// Add media item to the same cluster as the nearest neighbor
@@ -149,7 +159,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 							
 							System.out.println("Add " + id + " in cluster " + clusterId + " Nearest: " + nearestId);
 							
-							_collection.update(new BasicDBObject("id", id), 
+							_mediaItemsCollection.update(new BasicDBObject("id", id), 
 									new BasicDBObject("$set", new BasicDBObject("clusterId", clusterId)));
 							
 							BasicDBObject cluster = new BasicDBObject("id", clusterId);
@@ -168,9 +178,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 						// Create new Cluster
 						UUID clusterId = UUID.randomUUID();
 						
-						//System.out.println("Create new cluster" + clusterId + " for " + id);
-						
-						_collection.update(new BasicDBObject("id", id), 
+						_mediaItemsCollection.update(new BasicDBObject("id", id), 
 								new BasicDBObject("$set", new BasicDBObject("clusterId", clusterId.toString())));
 						
 						BasicDBObject cluster = new BasicDBObject("id", clusterId.toString());
