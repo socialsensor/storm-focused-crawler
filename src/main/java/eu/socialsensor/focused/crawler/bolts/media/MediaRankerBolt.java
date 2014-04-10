@@ -2,8 +2,6 @@ package eu.socialsensor.focused.crawler.bolts.media;
 
 import java.util.Map;
 
-import com.mongodb.DBObject;
-
 import eu.socialsensor.framework.common.domain.MediaItem;
 import eu.socialsensor.framework.common.factories.ObjectFactory;
 import backtype.storm.task.OutputCollector;

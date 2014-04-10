@@ -6,6 +6,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.log4j.Logger;
+
 import eu.socialsensor.framework.common.domain.MediaItem;
 import eu.socialsensor.framework.common.domain.WebPage;
 import eu.socialsensor.framework.retrievers.socialmedia.MediaRetriever;
@@ -28,6 +30,8 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	 * 
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
+	
+	private Logger logger = Logger.getLogger(MediaExtractionBolt.class);
 	
 	private OutputCollector _collector;
 	
@@ -74,14 +78,13 @@ public class MediaExtractionBolt extends BaseRichBolt {
 				if(mediaItem != null) { 
 					mediaItem.setPageUrl(expandedUrl);
 					_collector.emit(tuple(url, expandedUrl, "media", mediaItem));
-					
-					System.out.println(mediaItem.toJSONString());
 				}
-				else 
-				_collector.emit(tuple(url, expandedUrl, "exception", "Cannot find any media item"));
-			
+				else {
+					_collector.emit(tuple(url, expandedUrl, "exception", "Cannot find any media item"));
+				}
 			}
 		} catch (Exception e) {
+			logger.error(e);
 			synchronized(_collector) {
 				_collector.emit(tuple(url, expandedUrl, "exception", e.getMessage()));
 			}
@@ -131,7 +134,6 @@ public class MediaExtractionBolt extends BaseRichBolt {
 
 	@Override
 	public void cleanup() {
-		// TODO Auto-generated method stub
 		
 	}
 }

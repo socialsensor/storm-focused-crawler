@@ -21,6 +21,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -54,6 +55,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	 * 
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
+	
+	private Logger logger = Logger.getLogger(ArticleExtractionBolt.class);
+	
 	private OutputCollector _collector;
 	private HttpClient _httpclient;
 	
@@ -126,7 +130,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			if(webPage != null)
 				_queue.put(webPage);
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+			logger.error(e);
 		}
 	}   
 	
@@ -163,7 +167,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				}
 			}
 		}
-		
 	}
 	
 	private class Fetcher implements Runnable {
@@ -212,25 +215,17 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					InputStream input = entity.getContent();
 					byte[] content = IOUtils.toByteArray(input);
 					
-					//System.out.println("Content length: " + content.length);
-					//System.out.println("==================================================");
-					
 					Article article = getArticle(webPage, content);
 					
 					if(article != null) { 
-						List<MediaItem> mediaItems = article.getMediaItems();
-						for(MediaItem mi : mediaItems) {
-							System.out.print(mi.toJSONString());
-						}
-						
 						_tupleQueue.add(tuple(url, expandedUrl, "article", article));
 					}
-					else 
+					else {
 						_tupleQueue.add(tuple(url, expandedUrl, "exception", "Article is null!"));
-					
+					}
 					
 				} catch (Exception e) {
-					
+					logger.error(e);
 					_tupleQueue.add(tuple(url, expandedUrl, "exception", e.getMessage()));
 				}
 				finally {
@@ -275,15 +270,16 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  		Article article = new Article(title, text);
 	  		article.setLowQuality(isLowQuality);
 	  		
-	  		List<MediaItem> media = extractAricleImages(imgDoc, webPage, base, pageHash, content);		
-	  		//List<MediaItem> media = extractAllImages(base, title, webPage, pageHash, content);
+	  		List<MediaItem> mediaItems = extractAricleImages(imgDoc, webPage, base, pageHash, content);		
+	  		//List<MediaItem> mediaItems = extractAllImages(base, title, webPage, pageHash, content);
 	  		
-	  		for(MediaItem mItem : media) {
+	  		for(MediaItem mItem : mediaItems) {
 	  			article.addMediaItem(mItem);
 	  		}
 			return article;
 			
 	  	} catch(Exception ex) {
+	  		logger.error(ex);
 	  		return null;
 	  	}
 	}
@@ -293,7 +289,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		
 		List<MediaItem> images = new ArrayList<MediaItem>();
 		
-		String ref = webPage.getUrl();
 		InputSource imageslIS = new InputSource(new ByteArrayInputStream(content));
   		
   		List<Image> detectedImages;
@@ -311,6 +306,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
   				h = Integer.parseInt(height);
   			}
   			catch(Exception e) {
+  				logger.error(e);
   				continue;
   			}
   			
@@ -330,6 +326,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					continue;
 				
 			} catch (Exception e) {
+				logger.error(e);
 				continue;
 			}
 			
@@ -354,6 +351,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			mediaItem.setShares((long)webPage.getShares());
 			
 			mediaItem.setTitle(alt.trim());
+			mediaItem.setDescription(webPage.getTitle());
 			if(w != -1 && h != -1) 
 				mediaItem.setSize(w, h);
 			
@@ -365,8 +363,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	
 	public List<MediaItem> extractAllImages(String baseUri, String title, WebPage webPage, int pageHash, byte[] content) throws IOException {
 		List<MediaItem> images = new ArrayList<MediaItem>();
-		
-		String ref = webPage.getUrl();
 		
 		String html = IOUtils.toString(new ByteArrayInputStream(content));
 		Document doc = Jsoup.parse(html, baseUri);
@@ -418,7 +414,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			// Create image unique id
 			int imageHash = (url.hashCode() & 0x7FFFFFFF);
 			
-			mediaItem.setId("Web::"+pageHash+"_"+imageHash);
+			mediaItem.setId("Web#"+pageHash+"_"+imageHash);
 			mediaItem.setStreamId("Web");
 			mediaItem.setType("image");
 			mediaItem.setThumbnail(url.toString());

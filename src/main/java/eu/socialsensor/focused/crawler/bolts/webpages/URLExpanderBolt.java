@@ -9,6 +9,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
+
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
@@ -31,6 +33,8 @@ public class URLExpanderBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -5514715036795163046L;
 
+	private Logger logger = Logger.getLogger(URLExpanderBolt.class);
+	
 	private OutputCollector _collector;
 
 	private MongoClient _mongo;
@@ -48,6 +52,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 	private String inputField;
 	
 	public URLExpanderBolt(String mongoHost, String mongoDbName, String mongoCollectionName, String inputField) throws Exception {
+		
 		this.mongoHost = mongoHost;
 		this.mongoDbName = mongoDbName;
 		this.mongoCollectionName = mongoCollectionName;
@@ -71,7 +76,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 			_collection = _database.getCollection(mongoCollectionName);
 			
 		} catch (UnknownHostException e) {
-			e.printStackTrace();
+			logger.error(e);
 		}
 	}
 
@@ -79,6 +84,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 		WebPage webPage = (WebPage) tuple.getValueByField(inputField);
 		if(webPage != null) {
 			try {
+				
 				String url = webPage.getUrl();
 				String expandedUrl = expand(url);
 				
@@ -107,6 +113,8 @@ public class URLExpanderBolt extends BaseRichBolt {
 						BasicDBObject o = new BasicDBObject("$set", new BasicDBObject("status", "failed"));
 						BasicDBObject q = new BasicDBObject("url", url);
 						_collection.update(q , o);
+						
+						logger.error(e);
 					}
 				}
 				else {
@@ -115,7 +123,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 					_collection.update(q , o);
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error(e);
 			}
 		}
 		else {

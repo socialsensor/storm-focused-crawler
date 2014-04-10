@@ -5,6 +5,8 @@ import static backtype.storm.utils.Utils.tuple;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
@@ -29,6 +31,9 @@ public class UpdaterBolt extends BaseRichBolt {
 	 * 
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
+	
+	private Logger logger = Logger.getLogger(UpdaterBolt.class);
+	
 	private String mongoHost;
 	private String mongoDbName;
 	private String webpagesCollectionName;
@@ -61,7 +66,7 @@ public class UpdaterBolt extends BaseRichBolt {
 			_mediaCollection = _database.getCollection(mediaCollectionName);
 			
 		} catch (Exception e) {
-			
+			logger.error(e);
 		}
 		
 	}
@@ -115,6 +120,7 @@ public class UpdaterBolt extends BaseRichBolt {
 						}
 					}
 					catch(Exception e) {
+						logger.error(e);
 						continue;
 					}
 				}	
@@ -125,7 +131,7 @@ public class UpdaterBolt extends BaseRichBolt {
 			}
 		}
 		catch(Exception ex) {
-			ex.printStackTrace();
+			logger.error(ex);
 		}
 		
 	}
