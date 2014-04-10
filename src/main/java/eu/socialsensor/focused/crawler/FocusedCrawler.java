@@ -43,12 +43,14 @@ public class FocusedCrawler {
 			return;
 		}
 		
-		String redisHost = config.getString("redis.host", "xxx.xxx.xxx.xxx");
+		String redisHost = config.getString("redis.hostname", "xxx.xxx.xxx.xxx");
 		
-		String mongodbHostname = config.getString("mongodb.host", "xxx.xxx.xxx.xxx");
-		String mongoDBName = config.getString("mongodb.db", "Prototype");
-		String webPagesCollection = config.getString("mongodb.webpages", "WebPages");
-		String mediaItemsCollection = config.getString("mongodb.media", "MediaItems_WP");
+		String mongodbHostname = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
+		String mediaItemsDB = config.getString("mongodb.mediaItemsDB", "Prototype");
+		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems_WP");
+		String webPagesDB = config.getString("mongodb.webPagesDB", "Prototype");
+		String webPagesCollection = config.getString("mongodb.webPagesCollection", "WebPages");
+		
 		
 		//String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
 		//String textIndexCollection = config.getString("textindex.collection", "WebPagesP");
@@ -59,11 +61,11 @@ public class FocusedCrawler {
 			//BaseRichSpout spout = new MongoDbSpout(mongodbHostname, mongoDBName, webPagesCollection, query);
 			spout = new RedisSpout(redisHost, "webpages", "url");
 			
-			urlExpander = new URLExpanderBolt(mongodbHostname, mongoDBName, webPagesCollection, "webpages");
+			urlExpander = new URLExpanderBolt(mongodbHostname, webPagesDB, webPagesCollection, "webpages");
 			ranker = new RankerBolt("webpages");
 			articleExtraction = new ArticleExtractionBolt(48);
 			mediaExtraction = new MediaExtractionBolt();
-			updater = new UpdaterBolt(mongodbHostname, mongoDBName, webPagesCollection, mediaItemsCollection);
+			updater = new UpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, webPagesDB, webPagesCollection);
 		} catch (Exception e) {
 			logger.error(e);
 			return;

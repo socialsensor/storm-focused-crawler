@@ -34,21 +34,29 @@ public class UpdaterBolt extends BaseRichBolt {
 	
 	private Logger logger = Logger.getLogger(UpdaterBolt.class);
 	
-	private String mongoHost;
-	private String mongoDbName;
-	private String webpagesCollectionName;
-	private String mediaCollectionName;
+	private String mongodbHostname;
+	
+	private String mediaItemsDB;
+	private String mediaItemsCollection;
+	
+	private String webPagesDB;
+	private String webPagesCollection;
+	
 	
 	private MongoClient _mongo;
-	private DB _database;
+	private DB _mediadatabase, _webpagesdatabase;
 	private DBCollection _pagesCollection, _mediaCollection;
 	private OutputCollector _collector;
 
-	public UpdaterBolt(String mongoHost, String mongoDbName, String webpagesCollectionName, String mediaCollectionName) {
-		this.mongoHost = mongoHost;
-		this.mongoDbName = mongoDbName;
-		this.webpagesCollectionName = webpagesCollectionName;
-		this.mediaCollectionName = mediaCollectionName;
+	public UpdaterBolt(String mongodbHostname, String mediaItemsDB, String mediaItemsCollection, String webPagesDB, String webPagesCollection) {
+		this.mongodbHostname = mongodbHostname;
+		
+		this.mediaItemsDB = mediaItemsDB;
+		this.mediaItemsCollection = mediaItemsCollection;
+		
+		this.webPagesDB = webPagesDB;
+		this.webPagesCollection = webPagesCollection;
+		
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -60,10 +68,14 @@ public class UpdaterBolt extends BaseRichBolt {
 		
 		try {
 			_collector = collector;
-			_mongo = new MongoClient(mongoHost);
-			_database = _mongo.getDB(mongoDbName);
-			_pagesCollection = _database.getCollection(webpagesCollectionName);
-			_mediaCollection = _database.getCollection(mediaCollectionName);
+			_mongo = new MongoClient(mongodbHostname);
+			
+			_mediadatabase = _mongo.getDB(mediaItemsDB);
+			_mediaCollection = _mediadatabase.getCollection(mediaItemsCollection);
+			
+			_webpagesdatabase = _mongo.getDB(webPagesDB);
+			_pagesCollection = _webpagesdatabase.getCollection(webPagesCollection);
+			
 			
 		} catch (Exception e) {
 			logger.error(e);

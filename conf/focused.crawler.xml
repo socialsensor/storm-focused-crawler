@@ -2,22 +2,24 @@
 <configuration>
 
     <redis>
-        <host>xxx.xxx.xxx.xxx</host>
-        <webpagesChannel>webpages</webpagesChannel>
-        <mediaChannel>media</mediaChannel>
+        <hostname>xxx.xxx.xxx.xxx</hostname>
+        <webPagesChannel>webpages</webPagesChannel>
+        <mediaItemsChannel>media</mediaItemsChannel>
     </redis>
 
     <mongodb>
-        <host>xxx.xxx.xxx.xxx</host>
-        <db>Prototype</db>
-        <webpages>WebPages</webpages>
-        <media>MediaItems_WP</media>
-        <clusters>MediaClusters</clusters>
+        <hostname>xxx.xxx.xxx.xxx</hostname>
+        <webPagesDB>Prototype</webPagesDB>
+        <webpagesCollection>WebPages</webpagesCollection>
+        <mediaItemsDB>Prototype</mediaItemsDB>
+        <mediaItemsCollection>MediaItems_WP</mediaItemsCollection>
+        <clustersDB>Prototype</clustersDB>
+        <clustersCollection>MediaClusters</clustersCollection>
     </mongodb>
 
     <textindex>
         <host>http://xxx.xxx.xxx.xxx:8080/solr</host>
-        <collection>WebPagesP</collection>
+        <collection>WebPages</collection>
     </textindex>
 
     <topology>
