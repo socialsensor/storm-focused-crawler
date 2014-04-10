@@ -3,7 +3,8 @@
 
     <redis>
         <host>xxx.xxx.xxx.xxx</host>
-        <channel>webpages</channel>
+        <webpagesChannel>webpages</webpagesChannel>
+        <mediaChannel>media</mediaChannel>
     </redis>
 
     <mongodb>
@@ -11,6 +12,7 @@
         <db>Prototype</db>
         <webpages>WebPages</webpages>
         <media>MediaItems_WP</media>
+        <clusters>MediaClusters</clusters>
     </mongodb>
 
     <textindex>
