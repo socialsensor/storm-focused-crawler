@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.log4j.Logger;
+
 import com.mongodb.DBObject;
 import com.mongodb.util.JSON;
 
@@ -26,15 +28,17 @@ import backtype.storm.utils.Utils;
 
 public class RedisSpout extends BaseRichSpout {
 
+	private Logger logger = Logger.getLogger(RedisSpout.class);
+	
 	static final long serialVersionUID = 737015318988609460L;
 
 	private String channel;
 	
-	SpoutOutputCollector _collector;
-	final String host;
+	private SpoutOutputCollector _collector;
+	private final String host;
 	
-	LinkedBlockingQueue<String> queue;
-	JedisPool pool;
+	private LinkedBlockingQueue<String> queue;
+	private JedisPool pool;
 
 	private String idField;
 
@@ -63,14 +67,13 @@ public class RedisSpout extends BaseRichSpout {
 				@Override
 				public void onMessage(String channel, String message) {
 					
-					
 					DBObject obj = (DBObject) JSON.parse(message);
 					String id = (String) obj.get(idField);
 					if(!ids.contains(id)) {
 						queue.offer(message);
 						ids.add(id);
-						if(ids.size() % 50 == 0) {
-							System.out.println(ids.size() + " messages received.");
+						if(ids.size() % 500 == 0) {
+							logger.info(ids.size() + " messages received.");
 						}
 					}
 				}
@@ -120,7 +123,6 @@ public class RedisSpout extends BaseRichSpout {
         if(ret == null) {
             Utils.sleep(50);
         } else {
-        	//System.out.println(ret);
             _collector.emit(tuple(ret));            
         }
 	}
