@@ -28,7 +28,7 @@ import backtype.storm.utils.Utils;
 
 public class RedisSpout extends BaseRichSpout {
 
-	private Logger logger = Logger.getLogger(RedisSpout.class);
+	private Logger logger;
 	
 	static final long serialVersionUID = 737015318988609460L;
 
@@ -72,7 +72,7 @@ public class RedisSpout extends BaseRichSpout {
 					if(!ids.contains(id)) {
 						queue.offer(message);
 						ids.add(id);
-						if(ids.size() % 500 == 0) {
+						if(ids.size() % 50 == 0) {
 							logger.info(ids.size() + " messages received.");
 						}
 					}
@@ -112,6 +112,7 @@ public class RedisSpout extends BaseRichSpout {
 		ListenerThread listener = new ListenerThread(queue, pool);
 		listener.start();
 
+		logger = Logger.getLogger(RedisSpout.class);
 	}
 
 	public void close() {
@@ -146,7 +147,7 @@ public class RedisSpout extends BaseRichSpout {
 	public static void main(String...args) {
 		
 		/* */
-		RedisSpout spout = new RedisSpout("xxx.xxx.xxx.xxx", "webpages", "url");
+		RedisSpout spout = new RedisSpout("xxx.xxx.xxx.xxx", "media", "url");
 		
 		TopologyBuilder builder = new TopologyBuilder();
 		builder.setSpout("injector", spout, 1);
