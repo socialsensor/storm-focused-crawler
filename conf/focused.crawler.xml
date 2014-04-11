@@ -9,18 +9,18 @@
 
     <mongodb>
         <hostname>xxx.xxx.xxx.xxx</hostname>
-        <webPagesDB>webpages.db</webPagesDB>
-        <webpagesCollection>webpages.collection</webpagesCollection>
-        <mediaItemsDB>mediaitems.db</mediaItemsDB>
-        <mediaItemsCollection>mediaitems.collection</mediaItemsCollection>
-        <clustersDB>clusters.db</clustersDB>
-        <clustersCollection>clusters.collection</clustersCollection>
+        <webPagesDB>Prototype</webPagesDB>
+        <webpagesCollection>WebPages</webpagesCollection>
+        <mediaItemsDB>Prototype</mediaItemsDB>
+        <mediaItemsCollection>MediaItems</mediaItemsCollection>
+        <clustersDB>Prototype</clustersDB>
+        <clustersCollection>MediaClusters</clustersCollection>
     </mongodb>
 
 	<visualindex>
-        <learningfiles>./</learningfiles>
-        <hostname>xxx.xxx.xxx.xxx:xxxx</<hostname>
-        <collection>media</collection>
+        <learningfiles>/disk2_data/VisualIndex/learning_files</learningfiles>
+        <hostname>http://xxx.xxx.xxx.xxx:8080/VisualIndexService</hostname>
+        <collection>test</collection>
     </visualindex>
     
     <textindex>
@@ -29,7 +29,8 @@
     </textindex>
 
     <topology>
-        <name>FocusedCrawler</name>
+        <focusedCrawlerName>FocusedCrawler</focusedCrawlerName>
+        <visualIndexerName>VisualIndexer</visualIndexerName>
         <local>true</local>
         <workers>1</workers>
     </topology>
