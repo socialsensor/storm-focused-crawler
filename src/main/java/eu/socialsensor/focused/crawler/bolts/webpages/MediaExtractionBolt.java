@@ -31,7 +31,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
-	private Logger logger = Logger.getLogger(MediaExtractionBolt.class);
+	private Logger logger;
 	
 	private OutputCollector _collector;
 	
@@ -55,6 +55,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
 			OutputCollector collector) {
 		this._collector = collector;  		
+		logger = Logger.getLogger(MediaExtractionBolt.class);
 	}
 
 	public void execute(Tuple tuple) {

@@ -56,7 +56,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
-	private Logger logger = Logger.getLogger(ArticleExtractionBolt.class);
+	private Logger logger;
 	
 	private OutputCollector _collector;
 	private HttpClient _httpclient;
@@ -89,6 +89,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
 			OutputCollector collector) {
+		
+		logger = Logger.getLogger(ArticleExtractionBolt.class);
+		
 		_collector = collector;
 		_queue = new LinkedBlockingQueue<WebPage>();
 		_tupleQueue =  new LinkedBlockingQueue<List<Object>>();

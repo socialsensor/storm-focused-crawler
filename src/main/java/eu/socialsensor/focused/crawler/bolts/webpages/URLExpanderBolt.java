@@ -33,7 +33,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -5514715036795163046L;
 
-	private Logger logger = Logger.getLogger(URLExpanderBolt.class);
+	private Logger logger;
 	
 	private OutputCollector _collector;
 
@@ -69,6 +69,9 @@ public class URLExpanderBolt extends BaseRichBolt {
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
+		
+		logger = Logger.getLogger(URLExpanderBolt.class);
+		
 		this._collector = collector;
 		try {
 			_mongo = new MongoClient(mongoHost);

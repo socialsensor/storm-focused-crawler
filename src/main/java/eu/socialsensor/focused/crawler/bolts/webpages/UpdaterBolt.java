@@ -32,7 +32,7 @@ public class UpdaterBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
-	private Logger logger = Logger.getLogger(UpdaterBolt.class);
+	private Logger logger;
 	
 	private String mongodbHostname;
 	
@@ -65,6 +65,8 @@ public class UpdaterBolt extends BaseRichBolt {
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
 			OutputCollector collector) {
+		
+		logger = Logger.getLogger(UpdaterBolt.class);
 		
 		try {
 			_collector = collector;

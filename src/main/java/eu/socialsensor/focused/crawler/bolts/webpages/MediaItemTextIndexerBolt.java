@@ -3,6 +3,9 @@ package eu.socialsensor.focused.crawler.bolts.webpages;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
+import eu.socialsensor.focused.crawler.FocusedCrawler;
 import eu.socialsensor.focused.crawler.models.Article;
 import eu.socialsensor.framework.client.search.solr.SolrMediaItemHandler;
 import eu.socialsensor.framework.common.domain.MediaItem;
@@ -19,6 +22,9 @@ public class MediaItemTextIndexerBolt extends BaseRichBolt {
 	 * 
 	 */
 	private static final long serialVersionUID = -7500656732029697927L;
+	
+	private Logger logger;
+	
 	private String hostname;
 	private String service;
 	private String collection;
@@ -36,10 +42,13 @@ public class MediaItemTextIndexerBolt extends BaseRichBolt {
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, OutputCollector collector) {
+		logger = Logger.getLogger(MediaItemTextIndexerBolt.class);
+		
 		try {
 			solrMediaHandler = SolrMediaItemHandler.getInstance(hostname+"/"+service+"/"+collection);
 		} catch (Exception e) {
 			e.printStackTrace();
+			logger.error(e);
 			solrMediaHandler = null;
 		}
 	}
@@ -66,10 +75,12 @@ public class MediaItemTextIndexerBolt extends BaseRichBolt {
 			}
 			else {
 				//Nothing todo
+				logger.error("Unsupported type!");
 			}
 		}
 		catch(Exception ex) {
 			ex.printStackTrace();
+			logger.error(ex);
 		}
 		
 	}

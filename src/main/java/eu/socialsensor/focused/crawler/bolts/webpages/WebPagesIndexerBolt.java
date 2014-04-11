@@ -2,6 +2,8 @@ package eu.socialsensor.focused.crawler.bolts.webpages;
 
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
 import eu.socialsensor.framework.client.dao.WebPageDAO;
 import eu.socialsensor.framework.client.dao.impl.WebPageDAOImpl;
 import eu.socialsensor.framework.client.search.solr.SolrWebPageHandler;
@@ -20,6 +22,9 @@ public class WebPagesIndexerBolt extends BaseRichBolt {
 	 * 
 	 */
 	private static final long serialVersionUID = -7500656732029697927L;
+	
+	private Logger logger;
+	
 	private String _indexService;
 	private String _mongoHost;
 	private String _mongoDb;
@@ -41,11 +46,15 @@ public class WebPagesIndexerBolt extends BaseRichBolt {
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, OutputCollector collector) {
+		
+		logger = Logger.getLogger(WebPagesIndexerBolt.class);
+		
 		solrWebPageHandler = SolrWebPageHandler.getInstance(_indexService);
 		try {
 			webPageDAO = new WebPageDAOImpl(_mongoHost, _mongoDb, _mongoCollection);
 		} catch (Exception e) {
 			e.printStackTrace();
+			logger.error(e);
 		}
 	}
 
@@ -61,6 +70,7 @@ public class WebPagesIndexerBolt extends BaseRichBolt {
 		}
 		catch(Exception ex) {
 			ex.printStackTrace();
+			logger.error(ex);
 		}
 	}
 
