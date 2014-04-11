@@ -12,6 +12,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import javax.imageio.ImageIO;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.log4j.Logger;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
@@ -20,6 +21,7 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
+import eu.socialsensor.focused.crawler.models.ImageVector;
 import eu.socialsensor.framework.client.search.visual.JsonResultSet;
 import eu.socialsensor.framework.client.search.visual.JsonResultSet.JsonResult;
 import eu.socialsensor.framework.client.search.visual.VisualIndexHandler;
@@ -43,6 +45,8 @@ public class VisualIndexerBolt extends BaseRichBolt {
 	 * 
 	 */
 	private static final long serialVersionUID = -5514715036795163046L;
+	
+	private Logger logger;
 	
 	private OutputCollector _collector;
 	private VisualIndexHandler visualIndex;
@@ -77,6 +81,9 @@ public class VisualIndexerBolt extends BaseRichBolt {
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
+		
+		logger = Logger.getLogger(VisualIndexerBolt.class);
+		
 		this._collector = collector;
 		this.visualIndex = new VisualIndexHandler(webServiceHost, indexCollection);
 	}
@@ -84,17 +91,12 @@ public class VisualIndexerBolt extends BaseRichBolt {
 	public void execute(Tuple tuple) {
 		
 		String id = tuple.getStringByField("id");
-		String url = tuple.getStringByField("url");
-		//Double score = tuple.getDoubleByField("score");
-		
+		String url = tuple.getStringByField("url");	
 		boolean size = tuple.getBooleanByField("size");
-		
-		//System.out.println("Fetch and extract feature vector for " + id + " with score " + score);
+	
 		try {
-			
 			byte[] imageContent = IOUtils.toByteArray(new URL(url));
 			BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageContent));
-			
 			
 			Integer width=-1, height=-1;
 			boolean indexed = false;
@@ -110,21 +112,20 @@ public class VisualIndexerBolt extends BaseRichBolt {
 
 				ImageVectorizationResult imvr = imvec.call();
 				double[] vector = imvr.getImageVector();
-
 				
 				indexed = visualIndex.index(id, vector);
-	
 			}
 			
 			if(indexed) {
 				_collector.emit(tuple(id, Boolean.TRUE, width, height));
 			}
 			else {
+				logger.error("Failed to index media item with id=" + id);
 				_collector.emit(tuple(id, Boolean.FALSE, width, height));
 			}
 		} 
 		catch (Exception e) {
-			System.out.println("Exception: " + e.getMessage() + " url: "+url);
+			logger.error(e);
 			_collector.emit(tuple(id, Boolean.FALSE, -1, -1));
 			return;
 		}
@@ -132,10 +133,6 @@ public class VisualIndexerBolt extends BaseRichBolt {
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declare(new Fields("id", "indexed", "width", "height"));
-	}
-
-	public static void main(String[] args) throws Exception {
-		cluster();
 	}
 	
 	public static void cluster() throws Exception {
@@ -176,8 +173,8 @@ public class VisualIndexerBolt extends BaseRichBolt {
 		
 		DBCursor cursor = coll.find(new BasicDBObject("type","image"));
 		
-		ArrayBlockingQueue<Vec> queue1 = new ArrayBlockingQueue<Vec>(5000);
-		ArrayBlockingQueue<Vec> queue2 = new ArrayBlockingQueue<Vec>(5000);
+		ArrayBlockingQueue<ImageVector> queue1 = new ArrayBlockingQueue<ImageVector>(5000);
+		ArrayBlockingQueue<ImageVector> queue2 = new ArrayBlockingQueue<ImageVector>(5000);
 		
 		Thread clusterer = new Thread(new Clusterer(queue2, vIndex, coll, clustersCollection));
 		List<Thread> extractors = new ArrayList<Thread>();
@@ -196,7 +193,7 @@ public class VisualIndexerBolt extends BaseRichBolt {
 			String url = (String) mItem.get("url");
 				
 			try {
-				Vec vec = new Vec(id, url, null);
+				ImageVector vec = new ImageVector(id, url, null);
 				queue1.put(vec);
 				Thread.sleep(5);
 			}
@@ -209,9 +206,9 @@ public class VisualIndexerBolt extends BaseRichBolt {
 	}
 	
 	public static class Extractor implements Runnable {
-		ArrayBlockingQueue<Vec> queue1, queue2;
+		ArrayBlockingQueue<ImageVector> queue1, queue2;
 		
-		public Extractor(ArrayBlockingQueue<Vec> queue1, ArrayBlockingQueue<Vec> queue2) {
+		public Extractor(ArrayBlockingQueue<ImageVector> queue1, ArrayBlockingQueue<ImageVector> queue2) {
 			this.queue1 = queue1;
 			this.queue2 = queue2;
 
@@ -219,7 +216,7 @@ public class VisualIndexerBolt extends BaseRichBolt {
 		
 		public void run() {
 			while(true) {
-				Vec vec = queue1.poll();
+				ImageVector vec = queue1.poll();
 				if(vec==null) {
 					try {
 						Thread.sleep(1000);
@@ -246,8 +243,6 @@ public class VisualIndexerBolt extends BaseRichBolt {
 					queue2.put(vec);
 					
 				} catch (Exception e) {
-					//e.printStackTrace();
-					//System.out.println(e.getMessage());
 					continue;
 				} 
 				
@@ -260,11 +255,11 @@ public class VisualIndexerBolt extends BaseRichBolt {
 	
 	public static class Clusterer implements Runnable {
 
-		private ArrayBlockingQueue<Vec> queue;
+		private ArrayBlockingQueue<ImageVector> queue;
 		private VisualIndexHandler vIndex;
 		private DBCollection coll, clustersCollection;
 
-		public Clusterer(ArrayBlockingQueue<Vec> queue, VisualIndexHandler vIndex, DBCollection coll, DBCollection clustersCollection) {
+		public Clusterer(ArrayBlockingQueue<ImageVector> queue, VisualIndexHandler vIndex, DBCollection coll, DBCollection clustersCollection) {
 			this.queue = queue;
 			this.vIndex = vIndex;
 			
@@ -280,7 +275,7 @@ public class VisualIndexerBolt extends BaseRichBolt {
 				if(k % 100 == 0)
 					System.out.println(k + " indexed!");
 				
-			Vec vec = queue.poll();
+			ImageVector vec = queue.poll();
 			if(vec==null) {
 				try {
 					Thread.sleep(1000);
@@ -346,16 +341,5 @@ public class VisualIndexerBolt extends BaseRichBolt {
 		}
 		
 	}
-
-	private static class Vec {
-		public String id;
-		public double[] v;
-		public String url;
-
-		Vec(String id, String url, double[] v) {
-			this.id = id;
-			this.url = url;
-			this.v = v;
-		}
-	}
+	
 }

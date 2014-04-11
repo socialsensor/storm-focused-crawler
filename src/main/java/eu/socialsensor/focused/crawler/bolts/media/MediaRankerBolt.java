@@ -53,5 +53,6 @@ public class MediaRankerBolt extends BaseRichBolt {
 		
 		_collector.emit(new Values(id, url, sharesScore, size));
         _collector.ack(tuple);
+        
 	}   
 }
