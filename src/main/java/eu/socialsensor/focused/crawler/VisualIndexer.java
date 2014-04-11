@@ -4,8 +4,8 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
+import eu.socialsensor.focused.crawler.bolts.media.ClustererBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaRankerBolt;
-import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.media.VisualIndexerBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
 import backtype.storm.Config;
@@ -62,11 +62,13 @@ public class VisualIndexer {
 		
 		RedisSpout rediSpout = new RedisSpout(redisHost, "media", "id");
 		
-		IRichBolt visualIndexer, ranker, updater;
+		IRichBolt visualIndexer, ranker, clusterer;
 		try {
-			visualIndexer = new VisualIndexerBolt(indexHostname, indexCollection, codebookFiles, pcaFile);
 			ranker = new MediaRankerBolt("media");
-			updater = new MediaUpdaterBolt(mongoHost, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, indexHostname, indexCollection);
+			visualIndexer = new VisualIndexerBolt(indexHostname, indexCollection, codebookFiles, pcaFile);
+			//updater = new MediaUpdaterBolt(mongoHost, mediaItemsDB, mediaItemsCollection);
+			clusterer = new ClustererBolt(mongoHost, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, indexHostname, indexCollection);
+			
 		} catch (Exception e) {
 			return;
 		}
@@ -76,22 +78,23 @@ public class VisualIndexer {
 		builder.setSpout("injector", rediSpout, 1);
         builder.setBolt("ranker", ranker, 4).shuffleGrouping("injector");
         builder.setBolt("indexer", visualIndexer, 16).shuffleGrouping("ranker");
-		builder.setBolt("updater", updater, 1).shuffleGrouping("indexer");
+        builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");
+		//builder.setBolt("updater", updater, 1).shuffleGrouping("indexer");
         
         Config conf = new Config();
         conf.setDebug(false);
         
         // Run topology
-        String name = config.getString("topology.name", "visual-indexer");
+        String visualIndexerName = config.getString("topology.visualIndexerName", "visual-indexer");
         boolean local = config.getBoolean("topology.local", true);
         
         if(!local) {
-        	System.out.println("Submit topology to Storm cluster");
+        	logger.info("Submit topology to Storm cluster");
 			try {
 				int workers = config.getInt("topology.workers", 2);
 				conf.setNumWorkers(workers);
 				
-				StormSubmitter.submitTopology(name, conf, builder.createTopology());
+				StormSubmitter.submitTopology(visualIndexerName, conf, builder.createTopology());
 			}
 			catch(NumberFormatException e) {
 				logger.error(e);
@@ -104,7 +107,7 @@ public class VisualIndexer {
 		} else {
 			logger.info("Run topology in local mode");
 			LocalCluster cluster = new LocalCluster();
-			cluster.submitTopology(name, conf, builder.createTopology());
+			cluster.submitTopology(visualIndexerName, conf, builder.createTopology());
 		}
         
 	}

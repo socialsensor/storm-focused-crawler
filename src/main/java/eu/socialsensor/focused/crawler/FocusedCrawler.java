@@ -89,7 +89,7 @@ public class FocusedCrawler {
 		//builder.setBolt("text-indexer", indexer, 1).shuffleGrouping("updater");
 		       
         // Run topology
-        String name = config.getString("topology.name", "FocusedCrawler");
+        String name = config.getString("topology.focusedCrawlerName", "FocusedCrawler");
         boolean local = config.getBoolean("topology.local", true);
         
         Config conf = new Config();
