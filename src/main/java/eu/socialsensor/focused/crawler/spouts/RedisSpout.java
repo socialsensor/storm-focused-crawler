@@ -73,7 +73,7 @@ public class RedisSpout extends BaseRichSpout {
 						queue.offer(message);
 						ids.add(id);
 						if(ids.size() % 50 == 0) {
-							logger.info(ids.size() + " messages received.");
+							logger.info(ids.size() + " messages received. " + queue.size() + " in queue.");
 						}
 					}
 				}
