@@ -10,7 +10,7 @@ import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.URLExpanderBolt;
-import eu.socialsensor.focused.crawler.bolts.webpages.UpdaterBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.WebPagesUpdaterBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
@@ -65,7 +65,7 @@ public class FocusedCrawler {
 			ranker = new RankerBolt("webpages");
 			articleExtraction = new ArticleExtractionBolt(48);
 			mediaExtraction = new MediaExtractionBolt();
-			updater = new UpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, webPagesDB, webPagesCollection);
+			updater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
 		} catch (Exception e) {
 			logger.error(e);
 			return;

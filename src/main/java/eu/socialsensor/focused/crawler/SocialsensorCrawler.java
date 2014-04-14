@@ -8,13 +8,15 @@ import org.apache.log4j.Logger;
 
 import eu.socialsensor.focused.crawler.bolts.media.ClustererBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaRankerBolt;
+import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.media.VisualIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.RedisBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.TextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.URLExpanderBolt;
-import eu.socialsensor.focused.crawler.bolts.webpages.UpdaterBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.WebPagesUpdaterBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
@@ -33,7 +35,7 @@ public class SocialsensorCrawler {
 	 */
 	public static void main(String[] args) throws UnknownHostException {
 		
-		Logger logger = Logger.getLogger(FocusedCrawler.class);
+		Logger logger = Logger.getLogger(SocialsensorCrawler.class);
 		
 		XMLConfiguration config;
 		try {
@@ -57,9 +59,8 @@ public class SocialsensorCrawler {
 		String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
 		String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
 		
-		
-		String indexHostname = config.getString("visualindex.hostname");
-		String indexCollection = config.getString("visualindex.collection");
+		String visualIndexHostname = config.getString("visualindex.hostname");
+		String visualIndexCollection = config.getString("visualindex.collection");
 		
 		String learningFiles = config.getString("visualindex.learningfiles");
 		if(!learningFiles.endsWith("/"))
@@ -73,39 +74,39 @@ public class SocialsensorCrawler {
 		
 		String pcaFile = learningFiles + "pca_surf_4x128_32768to1024.txt";
 		
-		//String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
-		//String textIndexCollection = config.getString("textindex.collection", "WebPagesP");
+		String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
+		String textIndexCollection = config.getString("textindex.collection", "WebPages");
+		String textIndexService = textIndexHostname + "/" + textIndexCollection;
 		
 		BaseRichSpout wpSpout, miSpout;
 		IRichBolt wpRanker, miRanker;
-		IRichBolt urlExpander, articleExtraction, mediaExtraction, updater;
-		IRichBolt visualIndexer, clusterer;
+		IRichBolt urlExpander, articleExtraction, mediaExtraction, updater, textIndexer;
+		IRichBolt visualIndexer, clusterer, mediaUpdater;
 		IRichBolt miEmitter;
 		
 		try {
-			//BaseRichSpout spout = new MongoDbSpout(mongodbHostname, mongoDBName, webPagesCollection, query);
 			wpSpout = new RedisSpout(redisHost, "webpages", "url");
-			miSpout = new RedisSpout(redisHost, "media", "id");
+			miSpout = new RedisSpout(redisHost, "media-temp", "id");
 			
 			wpRanker = new RankerBolt("webpages");
-			miRanker = new MediaRankerBolt("media");
+			miRanker = new MediaRankerBolt("media-temp");
 			
 			urlExpander = new URLExpanderBolt("webpages");
 			
 			articleExtraction = new ArticleExtractionBolt(48);
 			mediaExtraction = new MediaExtractionBolt();
-			updater = new UpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, webPagesDB, webPagesCollection);
+			updater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
+			textIndexer = new TextIndexerBolt(textIndexService);
 			
-			miEmitter = new RedisBolt(redisHost, "media");
+			miEmitter = new RedisBolt(redisHost, "media-temp");
 					
-			visualIndexer = new VisualIndexerBolt(indexHostname, indexCollection, codebookFiles, pcaFile);
-			clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, indexHostname, indexCollection);
+			//visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
+			//clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, indexHostname, indexCollection);
+			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection);
 		} catch (Exception e) {
 			logger.error(e);
 			return;
 		}
-		
-		
 		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
@@ -116,19 +117,23 @@ public class SocialsensorCrawler {
 		builder.setBolt("miRanker", miRanker, 4).shuffleGrouping("miInjector");
 		
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpRanker");
-		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "article");
+		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "webpage");
 		builder.setBolt("mediaExtraction", mediaExtraction, 4).shuffleGrouping("expander", "media");
-		builder.setBolt("updater", updater, 4).shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
-		builder.setBolt("miEmitter", miEmitter, 1).shuffleGrouping("updater");
+		builder.setBolt("updater", updater, 4)
+			.shuffleGrouping("articleExtraction", "webpage")
+			.shuffleGrouping("mediaExtraction", "webpage");
+		builder.setBolt("textIndexer", textIndexer, 1)
+			.shuffleGrouping("articleExtraction", "webpage");
 		
+		builder.setBolt("mediaupdater", mediaUpdater, 1)
+			.shuffleGrouping("articleExtraction", "media")
+			.shuffleGrouping("mediaExtraction", "media");
 		
-        builder.setBolt("indexer", visualIndexer, 16).shuffleGrouping("miRanker");
-        builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");
-        
-		//String textIndexService = textIndexHostname + "/" + textIndexCollection;
-		//WebPagesIndexerBolt indexer = new WebPagesIndexerBolt(textIndexService, mongodbHostname, mongoDBName, webPagesCollection);
-		//builder.setBolt("text-indexer", indexer, 1).shuffleGrouping("updater");
-		       
+		builder.setBolt("miEmitter", miEmitter, 1).shuffleGrouping("mediaupdater");
+
+        //builder.setBolt("indexer", visualIndexer, 16).shuffleGrouping("miRanker");
+        //builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
+		
         // Run topology
         String name = config.getString("topology.focusedCrawlerName", "FocusedCrawler");
         boolean local = config.getBoolean("topology.local", true);
