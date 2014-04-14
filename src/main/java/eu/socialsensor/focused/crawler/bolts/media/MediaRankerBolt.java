@@ -27,7 +27,7 @@ public class MediaRankerBolt extends BaseRichBolt {
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-    	declarer.declare(new Fields("id", "url", "score", "size"));
+    	declarer.declare(new Fields("MediaItem", "score"));
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
@@ -39,19 +39,13 @@ public class MediaRankerBolt extends BaseRichBolt {
 		String json = tuple.getStringByField(inputField);
 		MediaItem mediaItem = ObjectFactory.createMediaItem(json);
 		
-		String id = mediaItem.getId();
-		String url = mediaItem.getUrl();
+		System.out.println(mediaItem.toJSONString());
 		Long shares = mediaItem.getShares();
-		
-		boolean size = true;
-		
-		if(mediaItem.getWidth() == null || mediaItem.getHeight() == null)
-				size  = false;
 		
 		double sharesScore = 1 - Math.exp(-0.05 * shares);
 		sharesScore = (sharesScore + 1) / 2;
 		
-		_collector.emit(new Values(id, url, sharesScore, size));
+		_collector.emit(new Values(mediaItem, sharesScore));
         _collector.ack(tuple);
         
 	}   

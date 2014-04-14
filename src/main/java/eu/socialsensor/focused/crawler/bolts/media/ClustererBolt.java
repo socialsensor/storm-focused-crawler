@@ -21,6 +21,7 @@ import eu.socialsensor.framework.client.search.visual.JsonResultSet;
 import eu.socialsensor.framework.client.search.visual.JsonResultSet.JsonResult;
 import eu.socialsensor.framework.client.search.visual.VisualIndexHandler;
 import eu.socialsensor.framework.common.domain.MediaCluster;
+import eu.socialsensor.framework.common.domain.MediaItem;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -96,21 +97,26 @@ public class ClustererBolt extends BaseRichBolt {
 	}
 
 	public void execute(Tuple tuple) {
-		String id = tuple.getStringByField("id");
-
-		JsonResultSet response = _visualIndex.getSimilarImages(id, threshold);
-		List<JsonResult> results = response.getResults();
-		if(results.size()>1) {
-			String nearestId = results.get(0).getId();
-			if(id.equals(nearestId))
-				nearestId = results.get(1).getId();
+		try {
+			MediaItem mediaItem = (MediaItem) tuple.getValueByField("MediaItem");
+			String id = mediaItem.getId();
 			
-			_mQ.offer(Pair.of(id, nearestId));
+			JsonResultSet response = _visualIndex.getSimilarImages(id, threshold);
+			List<JsonResult> results = response.getResults();
+			if(results.size()>1) {
+				String nearestId = results.get(0).getId();
+				if(id.equals(nearestId))
+					nearestId = results.get(1).getId();
+				
+				_mQ.offer(Pair.of(id, nearestId));
+			}
+			else {
+				_mQ.offer(Pair.of(id, null));
+			}
 		}
-		else {
-			_mQ.offer(Pair.of(id, null));
+		catch(Exception e) {
+			logger.error(e);
 		}
-			
 		
 		
 	}   

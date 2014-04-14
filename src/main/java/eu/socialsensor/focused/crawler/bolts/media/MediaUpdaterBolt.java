@@ -1,21 +1,20 @@
 package eu.socialsensor.focused.crawler.bolts.media;
 
+import static backtype.storm.utils.Utils.tuple;
+
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.DB;
-import com.mongodb.DBCollection;
-import com.mongodb.DBObject;
-import com.mongodb.MongoClient;
-
+import eu.socialsensor.framework.client.dao.impl.MediaItemDAOImpl;
+import eu.socialsensor.framework.client.mongo.UpdateItem;
+import eu.socialsensor.framework.common.domain.MediaItem;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
+import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
-
 
 public class MediaUpdaterBolt extends BaseRichBolt {
 
@@ -26,32 +25,30 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	
 	Logger logger;
 	
-	private String mongoHost;
-	
-	private String mediaItemsDbName;
-	private String mediaItemsCollectionName;
-	
-	private DBCollection _mediaItemsCollection;
+	private String mongodbHostname;
+	private String mediaItemsDB;
+	private String mediaItemsCollection;
 
-	public MediaUpdaterBolt(String mongoHost, String mediaItemsDbName, String mediaItemsCollectionName) {
-		this.mongoHost = mongoHost;
-		this.mediaItemsDbName = mediaItemsDbName;
-		this.mediaItemsCollectionName = mediaItemsCollectionName;
+	private MediaItemDAOImpl _mediaItemDAO;
+	private OutputCollector _collector;
+
+	public MediaUpdaterBolt(String mongodbHostname, String mediaItemsDB, String mediaItemsCollection) {
+		this.mongodbHostname = mongodbHostname;
+		this.mediaItemsDB = mediaItemsDB;
+		this.mediaItemsCollection = mediaItemsCollection;
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
+    	declarer.declare(new Fields("MediaItem"));
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
 			OutputCollector collector) {
 		
 		logger = Logger.getLogger(MediaUpdaterBolt.class);
-		
 		try {
-			MongoClient mongo = new MongoClient(mongoHost);
-			DB _database = mongo.getDB(mediaItemsDbName);
-			_mediaItemsCollection = _database.getCollection(mediaItemsCollectionName);
-			
+			_mediaItemDAO = new MediaItemDAOImpl(mongodbHostname, mediaItemsDB, mediaItemsCollection);
+			_collector = collector;
 		} catch (Exception e) {
 			logger.error(e);
 		}
@@ -59,29 +56,36 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	}
 
 	public void execute(Tuple tuple) {
-		String id = tuple.getStringByField("id");
-		boolean indexed = tuple.getBooleanByField("indexed");
-		Integer width = tuple.getIntegerByField("width");
-		Integer height = tuple.getIntegerByField("height");
-	
-		if(_mediaItemsCollection != null) {
-			DBObject q = new BasicDBObject("id", id);
+		if(_mediaItemDAO != null) {
 			
-			BasicDBObject f = new BasicDBObject("vIndexed", indexed);
-			if(indexed)
-				f.put("status", "indexed");
-			else
-				f.put("status", "failed");
+			try {
+			MediaItem mediaItem = (MediaItem) tuple.getValueByField("MediaItem");
+				if(mediaItem == null)
+					return;
 			
-			if(width!=null && height!=null && width!=-1 && height!=-1) {
-				f.put("height", height);
-				f.put("width", width);
+				if(_mediaItemDAO.exists(mediaItem.getId())) {
+				
+					UpdateItem update = new UpdateItem();
+					update.setField("vIndexed", mediaItem.isVisualIndexed());
+					update.setField("status", mediaItem.isVisualIndexed()?"indexed":"failed");
+				
+					Integer width = mediaItem.getWidth();
+					Integer height = mediaItem.getHeight();
+					if(width!=null && height!=null && width!=-1 && height!=-1) {
+						update.setField("height", height);
+						update.setField("width", width);
+					}
+				
+					_mediaItemDAO.updateMediaItem(mediaItem.getId(), update);
+				}
+				else {
+					_collector.emit(tuple(mediaItem));
+					_mediaItemDAO.addMediaItem(mediaItem);
+				}
 			}
-			
-			DBObject o = new BasicDBObject("$set", f);
-			
-			_mediaItemsCollection.update(q, o, false, true);
-
+			catch(Exception e) {
+				logger.error(e);
+			}
 		}
 	}   
 	

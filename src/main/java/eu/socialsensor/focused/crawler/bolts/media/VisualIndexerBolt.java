@@ -25,6 +25,7 @@ import eu.socialsensor.focused.crawler.models.ImageVector;
 import eu.socialsensor.framework.client.search.visual.JsonResultSet;
 import eu.socialsensor.framework.client.search.visual.JsonResultSet.JsonResult;
 import eu.socialsensor.framework.client.search.visual.VisualIndexHandler;
+import eu.socialsensor.framework.common.domain.MediaItem;
 import gr.iti.mklab.visual.aggregation.VladAggregatorMultipleVocabularies;
 import gr.iti.mklab.visual.dimreduction.PCA;
 import gr.iti.mklab.visual.extraction.AbstractFeatureExtractor;
@@ -89,50 +90,51 @@ public class VisualIndexerBolt extends BaseRichBolt {
 	}
 
 	public void execute(Tuple tuple) {
-		
-		String id = tuple.getStringByField("id");
-		String url = tuple.getStringByField("url");	
-		boolean size = tuple.getBooleanByField("size");
-	
+		MediaItem mediaItem = (MediaItem) tuple.getValueByField("MediaItem");
+		if(mediaItem == null)
+			return;
+			
 		try {
+			
+			String id = mediaItem.getId();
+			String url = mediaItem.getUrl();
+			
 			byte[] imageContent = IOUtils.toByteArray(new URL(url));
 			BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageContent));
 			
-			Integer width=-1, height=-1;
 			boolean indexed = false;
-			
+		
 			if(image != null) {
 				
 				ImageVectorization imvec = new ImageVectorization(id, image, targetLengthMax, maxNumPixels);
 				
-				if(!size) {
-					width = image.getWidth();
-					height = image.getHeight();
+				if(mediaItem.getWidth()==null && mediaItem.getHeight()==null) {
+					mediaItem.setSize(image.getWidth(), image.getHeight());
 				}
 
 				ImageVectorizationResult imvr = imvec.call();
 				double[] vector = imvr.getImageVector();
 				
-				indexed = visualIndex.index(id, vector);
+				indexed = visualIndex.index(mediaItem.getId(), vector);
 			}
 			
-			if(indexed) {
-				_collector.emit(tuple(id, Boolean.TRUE, width, height));
-			}
-			else {
+			if(!indexed) {
 				logger.error("Failed to index media item with id=" + id);
-				_collector.emit(tuple(id, Boolean.FALSE, width, height));
 			}
+			
+			mediaItem.setVisualIndexed(indexed);
+			_collector.emit(tuple(mediaItem));
+			
 		} 
 		catch (Exception e) {
 			logger.error(e);
-			_collector.emit(tuple(id, Boolean.FALSE, -1, -1));
-			return;
+			mediaItem.setVisualIndexed(false);
+			_collector.emit(tuple(mediaItem));
 		}
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields("id", "indexed", "width", "height"));
+		declarer.declare(new Fields("MediaItem"));
 	}
 	
 	public static void cluster() throws Exception {
