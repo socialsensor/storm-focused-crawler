@@ -61,7 +61,7 @@ public class FocusedCrawler {
 			//BaseRichSpout spout = new MongoDbSpout(mongodbHostname, mongoDBName, webPagesCollection, query);
 			spout = new RedisSpout(redisHost, "webpages", "url");
 			
-			urlExpander = new URLExpanderBolt(mongodbHostname, webPagesDB, webPagesCollection, "webpages");
+			urlExpander = new URLExpanderBolt("webpages");
 			ranker = new RankerBolt("webpages");
 			articleExtraction = new ArticleExtractionBolt(48);
 			mediaExtraction = new MediaExtractionBolt();

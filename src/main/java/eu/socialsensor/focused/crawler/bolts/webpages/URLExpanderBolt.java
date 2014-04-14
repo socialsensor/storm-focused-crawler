@@ -36,14 +36,6 @@ public class URLExpanderBolt extends BaseRichBolt {
 	private Logger logger;
 	
 	private OutputCollector _collector;
-
-	private MongoClient _mongo;
-	private DB _database;
-	private DBCollection _collection;
-
-	private String mongoCollectionName;
-	private String mongoDbName;
-	private String mongoHost;
 	
 	private static int max_redirects = 4;
 	
@@ -51,11 +43,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 
 	private String inputField;
 	
-	public URLExpanderBolt(String mongoHost, String mongoDbName, String mongoCollectionName, String inputField) throws Exception {
-		
-		this.mongoHost = mongoHost;
-		this.mongoDbName = mongoDbName;
-		this.mongoCollectionName = mongoCollectionName;
+	public URLExpanderBolt(String inputField) throws Exception {
 		
 		this.inputField = inputField;
 		
@@ -73,14 +61,6 @@ public class URLExpanderBolt extends BaseRichBolt {
 		logger = Logger.getLogger(URLExpanderBolt.class);
 		
 		this._collector = collector;
-		try {
-			_mongo = new MongoClient(mongoHost);
-			_database = _mongo.getDB(mongoDbName);
-			_collection = _database.getCollection(mongoCollectionName);
-			
-		} catch (UnknownHostException e) {
-			logger.error(e);
-		}
 	}
 
 	public void execute(Tuple tuple) {	
@@ -94,36 +74,24 @@ public class URLExpanderBolt extends BaseRichBolt {
 				if(expandedUrl != null) {
 					try {
 						URL temp = new URL(expandedUrl);
-					
 						String domain = temp.getHost();
 					
-						BasicDBObject f = new BasicDBObject("expandedUrl", expandedUrl);
-						f.put("domain", domain);
-						BasicDBObject o = new BasicDBObject("$set", f);
-						BasicDBObject q = new BasicDBObject("url", url);
-						_collection.update(q , o);
-					
 						webPage.setExpandedUrl(expandedUrl);
+						webPage.setDomain(domain);
 						synchronized(_collector) {
 							if(targets.contains(domain)) 
 								_collector.emit("media", tuple(webPage));
 							else 
 								_collector.emit("article", tuple(webPage));
-							
 						}
 					}
 					catch(Exception e) {
-						BasicDBObject o = new BasicDBObject("$set", new BasicDBObject("status", "failed"));
-						BasicDBObject q = new BasicDBObject("url", url);
-						_collection.update(q , o);
-						
+						// TODO update web pages
 						logger.error(e);
 					}
 				}
 				else {
-					BasicDBObject o = new BasicDBObject("$set", new BasicDBObject("status", "failed"));
-					BasicDBObject q = new BasicDBObject("url", url);
-					_collection.update(q , o);
+					// TODO update web pages
 				}
 			} catch (Exception e) {
 				logger.error(e);
