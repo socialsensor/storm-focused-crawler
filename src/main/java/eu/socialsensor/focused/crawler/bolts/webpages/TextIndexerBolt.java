@@ -4,8 +4,6 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 
-import eu.socialsensor.framework.client.dao.WebPageDAO;
-import eu.socialsensor.framework.client.dao.impl.WebPageDAOImpl;
 import eu.socialsensor.framework.client.search.solr.SolrWebPageHandler;
 import eu.socialsensor.framework.common.domain.WebPage;
 import backtype.storm.task.OutputCollector;
@@ -15,9 +13,8 @@ import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Tuple;
 
 
-public class WebPagesIndexerBolt extends BaseRichBolt {
+public class TextIndexerBolt extends BaseRichBolt {
 
-	
 	/**
 	 * 
 	 */
@@ -26,19 +23,10 @@ public class WebPagesIndexerBolt extends BaseRichBolt {
 	private Logger logger;
 	
 	private String _indexService;
-	private String _mongoHost;
-	private String _mongoDb;
-	private String _mongoCollection;
+	private SolrWebPageHandler solrWebPageHandler = null;
 	
-	private SolrWebPageHandler solrWebPageHandler;
-	private WebPageDAO webPageDAO;
-	
-	public WebPagesIndexerBolt(String indexService, String mongoHost, String mongoDb, String mongoCollection) {
+	public TextIndexerBolt(String indexService) {
 		this._indexService = indexService;
-		
-		_mongoHost = mongoHost;
-		_mongoDb = mongoDb;
-		_mongoCollection = mongoCollection;
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -46,30 +34,18 @@ public class WebPagesIndexerBolt extends BaseRichBolt {
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, OutputCollector collector) {
-		
-		logger = Logger.getLogger(WebPagesIndexerBolt.class);
-		
+		logger = Logger.getLogger(TextIndexerBolt.class);
 		solrWebPageHandler = SolrWebPageHandler.getInstance(_indexService);
-		try {
-			webPageDAO = new WebPageDAOImpl(_mongoHost, _mongoDb, _mongoCollection);
-		} catch (Exception e) {
-			e.printStackTrace();
-			logger.error(e);
-		}
 	}
 
 	public void execute(Tuple tuple) {
-		
 		try {
-			String url = tuple.getStringByField("url");
-			WebPage webPage = webPageDAO.getWebPage(url);
-			
-			if(webPage != null) {
+			WebPage webPage = (WebPage) tuple.getValueByField("WebPage");
+			if(webPage != null && solrWebPageHandler != null) {
 				solrWebPageHandler.insertWebPage(webPage);
 			}
 		}
 		catch(Exception ex) {
-			ex.printStackTrace();
 			logger.error(ex);
 		}
 	}

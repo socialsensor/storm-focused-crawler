@@ -6,6 +6,8 @@ import java.util.Date;
 import java.util.Map;
 import java.util.PriorityQueue;
 
+import org.apache.log4j.Logger;
+
 import eu.socialsensor.focused.crawler.models.RankedWebPage;
 import eu.socialsensor.framework.common.domain.WebPage;
 import eu.socialsensor.framework.common.factories.ObjectFactory;
@@ -24,6 +26,8 @@ public class RankerBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = 1L;
 
+	private Logger logger;
+	
 	private static long avgTimeDiff = 10 * 60 * 1000; // 10 minutes 
 	
 	private OutputCollector _collector;
@@ -39,6 +43,8 @@ public class RankerBolt extends BaseRichBolt {
 			OutputCollector collector) {
 		this._collector = collector;
 		this._queue = new PriorityQueue<RankedWebPage>();
+		
+		logger = Logger.getLogger(RankerBolt.class);
 		
 		Thread[] threads = new Thread[4];
 		for(int i=0; i<4; i++) {
@@ -60,7 +66,7 @@ public class RankerBolt extends BaseRichBolt {
 				}
 			}
 		} catch(Exception e) {
-				System.out.println("Exception: "+e.getMessage());
+				logger.error("Exception: "+e.getMessage());
 		}
 	}
 
@@ -104,6 +110,7 @@ public class RankerBolt extends BaseRichBolt {
 						Utils.sleep(500);
 					}
 					else {
+
 						WebPage webPage = rankedWebPage.getWebPage();
 						synchronized(_collector) {
 							_collector.emit(tuple(webPage));

@@ -2,6 +2,8 @@ package eu.socialsensor.focused.crawler.bolts.webpages;
 
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
 import eu.socialsensor.framework.common.domain.MediaItem;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -21,6 +23,8 @@ public class RedisBolt extends BaseRichBolt {
 	
 	private Jedis publisherJedis;
 	private String host, channel;
+
+	private Logger logger;
 	
 	public RedisBolt(String host, String channel) {
 		this.host = host;
@@ -33,14 +37,19 @@ public class RedisBolt extends BaseRichBolt {
 		JedisPoolConfig poolConfig = new JedisPoolConfig();
         JedisPool jedisPool = new JedisPool(poolConfig, host, 6379, 0);
 		
-        this.publisherJedis = jedisPool.getResource();
-        
+        publisherJedis = jedisPool.getResource();
+        logger = Logger.getLogger(RedisBolt.class);
 	}
 
 	public void execute(Tuple input) {
-		MediaItem mi = (MediaItem) input.getValueByField("mediaItem");
-		if(mi != null) {
-			publisherJedis.publish(channel, mi.toJSONString());
+		try {
+			MediaItem mi = (MediaItem) input.getValueByField("MediaItem");
+			if(mi != null) {
+				publisherJedis.publish(channel, mi.toJSONString());
+			}
+		}
+		catch(Exception e) {
+			logger.error(e);
 		}
 	}
 

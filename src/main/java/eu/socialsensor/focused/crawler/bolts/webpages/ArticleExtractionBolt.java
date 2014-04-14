@@ -56,6 +56,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
+	private static String MEDIA_STREAM = "media";
+	private static String WEBPAGE_STREAM = "webpage";
+	
 	private Logger logger;
 	
 	private OutputCollector _collector;
@@ -75,7 +78,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	private int numOfFetchers = 48;
 	
 	private BlockingQueue<WebPage> _queue;
-	private BlockingQueue<List<Object>> _tupleQueue;
+	private BlockingQueue<Object> _tupleQueue;
 
 	private RequestConfig _requestConfig;
 	
@@ -84,7 +87,8 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-    	declarer.declare(new Fields("url", "expandedUrl", "domain", "type", "content"));
+    	declarer.declareStream(MEDIA_STREAM, new Fields("MediaItem"));
+    	declarer.declareStream(WEBPAGE_STREAM, new Fields("WebPage"));
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
@@ -95,20 +99,19 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		_collector = collector;
 		
 		_queue = new LinkedBlockingQueue<WebPage>();
-		_tupleQueue =  new LinkedBlockingQueue<List<Object>>();
+		_tupleQueue =  new LinkedBlockingQueue<Object>();
 		
 		_cm = new PoolingHttpClientConnectionManager();
 		_cm.setMaxTotal(200);
 		_cm.setDefaultMaxPerRoute(20);
-
 
 		_httpclient = HttpClients.custom()
 		        .setConnectionManager(_cm)
 		        .build();
 		
 		this._requestConfig = RequestConfig.custom()
-		        .setSocketTimeout(2000)
-		        .setConnectTimeout(2000)
+		        .setSocketTimeout(10000)
+		        .setConnectTimeout(10000)
 		        .build();
 
 		_articleExtractor = CommonExtractors.ARTICLE_EXTRACTOR;
@@ -131,8 +134,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	public void execute(Tuple tuple) {
 		WebPage webPage = (WebPage) tuple.getValueByField("webPage");
 		try {
-			if(webPage != null)
+			if(webPage != null) {
 				_queue.put(webPage);
+			}
 		} catch (InterruptedException e) {
 			logger.error(e);
 		}
@@ -141,29 +145,24 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	private static class Emitter implements Runnable {
 
 		private OutputCollector collector;
-		private BlockingQueue<List<Object>> tupleQueue;
-
-		private static int emits = 0;
-		private static long t = System.currentTimeMillis();
+		private BlockingQueue<Object> tupleQueue;
 		
-		public Emitter(OutputCollector _collector, BlockingQueue<List<Object>> _tupleQueue) {
+		public Emitter(OutputCollector _collector, BlockingQueue<Object> _tupleQueue) {
 			this.collector = _collector;
 			this.tupleQueue = _tupleQueue;
 		}
 		
 		public void run() {
 			while(true) {
-				List<Object> tuple = tupleQueue.poll();
-				if(tuple != null) {
+				Object obj = tupleQueue.poll();
+				if(obj != null) {
 					synchronized(collector) {
-						emits++;
-						if(emits%50==0) {
-							t = System.currentTimeMillis() - t;
-							System.out.println(emits + " articles proccessed in " + (t/1000) + " sec. "
-									+ tupleQueue.size() + " in queue!");
-							t = System.currentTimeMillis();
+						if(MediaItem.class.isInstance(obj)) {
+							collector.emit(MEDIA_STREAM, tuple(obj));
 						}
-						collector.emit(tuple);
+						else if(WebPage.class.isInstance(obj)) {
+							collector.emit(WEBPAGE_STREAM, tuple(obj));
+						}
 					}
 				}
 				else {
@@ -192,14 +191,11 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					continue;
 				}
 				
-				if(webPage==null) {
+				if(webPage == null) {
 					continue;
 				}
 				
-				String url = webPage.getUrl();
 				String expandedUrl = webPage.getExpandedUrl();
-				String domain = webPage.getDomain();
-				
 				HttpGet httpget = null;
 				try {
 					
@@ -213,25 +209,32 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					if(!contentType.getMimeType().equals(ContentType.TEXT_HTML.getMimeType())) {
 						System.out.println("Not supported mime type");
 						System.out.println(contentType.getMimeType()+ " - "+ContentType.TEXT_HTML.getMimeType());
-						_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", "Not supported mime type"));
+						
+						//_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", "Not supported mime type"));
+						
 						continue;
 					}
 					
 					InputStream input = entity.getContent();
 					byte[] content = IOUtils.toByteArray(input);
 					
-					Article article = getArticle(webPage, content);
-					
-					if(article != null) { 
-						_tupleQueue.add(tuple(url, expandedUrl, domain, "article", article));
+					List<MediaItem> mediaItems = new ArrayList<MediaItem>();
+					boolean parsed = parseWebPage(webPage, content, mediaItems);
+					//System.out.println("parsed: " + parsed);
+					if(parsed) { 
+						//_tupleQueue.add(tuple(url, expandedUrl, domain, "article", article));
+						_tupleQueue.add(webPage);
+						for(MediaItem mItem : mediaItems) {
+							_tupleQueue.add(mItem);
+						}
 					}
 					else {
-						_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", "Article is null!"));
+						//_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", "Article is null!"));
 					}
 					
 				} catch (Exception e) {
 					logger.error(e);
-					_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", e.getMessage()));
+					//_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", e.getMessage()));
 				}
 				finally {
 					if(httpget != null)
@@ -242,6 +245,49 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		}
 	}
 	
+	public boolean parseWebPage(WebPage webPage, byte[] content, List<MediaItem> mediaItems) {  
+	  	try { 
+	  		String base = webPage.getExpandedUrl();
+	  		
+	  		InputSource articelIS1 = new InputSource(new ByteArrayInputStream(content));
+	  		InputSource articelIS2 = new InputSource(new ByteArrayInputStream(content));
+		  	TextDocument document = null, imgDoc = null;
+
+	  		document = new BoilerpipeSAXInput(articelIS1).getTextDocument();
+	  		imgDoc = new BoilerpipeSAXInput(articelIS2).getTextDocument();
+	  		
+	  		TextDocumentStatistics dsBefore = new TextDocumentStatistics(document, false);
+	  		synchronized(_articleExtractor) {
+	  			_articleExtractor.process(document);
+	  		}
+	  		synchronized(_extractor) {
+	  			_extractor.process(imgDoc);
+	  		}
+	  		TextDocumentStatistics dsAfter = new TextDocumentStatistics(document, false);
+	  		
+	  		boolean isLowQuality = true;
+	  		synchronized(_estimator) {
+	  			isLowQuality = _estimator.isLowQuality(dsBefore, dsAfter);
+	  		}
+	  	
+	  		String title = document.getTitle();
+	  		String text = document.getText(true, false);
+	  		
+	  		webPage.setTitle(title);
+	  		webPage.setText(text);
+	  		webPage.setArticle(!isLowQuality);
+	  		
+	  		mediaItems.addAll(extractAricleImages(imgDoc, webPage, base, content));		
+	  		webPage.setMedia(mediaItems.size());
+	  		
+			return true;
+			
+	  	} catch(Exception ex) {
+	  		logger.error(ex);
+	  		return false;
+	  	}
+	}
+
 	public Article getArticle(WebPage webPage, byte[] content) {  
 		
 		String base = webPage.getExpandedUrl();
@@ -303,14 +349,14 @@ public class ArticleExtractionBolt extends BaseRichBolt {
   			
   			Integer w = -1, h = -1;
   			try {
-  				String width = image.getWidth();
-  				String height = image.getHeight();
+  				String width = image.getWidth().replaceAll("%", "");
+  				String height = image.getHeight().replaceAll("%", "");
   	
   				w = Integer.parseInt(width);
   				h = Integer.parseInt(height);
   			}
   			catch(Exception e) {
-  				logger.error(e);
+  				// filter images without size
   				continue;
   			}
   			
@@ -445,10 +491,8 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		return images;
 	}
 	
-	/*
 	public List<MediaItem> extractVideos(WebPage webPage, byte[] content) {
-		
-		String ref = webPage.getUrl();
+
 		String base = webPage.getExpandedUrl();
 		
 		List<MediaItem> videos = new ArrayList<MediaItem>(); 
@@ -478,9 +522,8 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					mediaItem.setThumbnail(url.toString());
 					
 					mediaItem.setPageUrl(base.toString());
-					mediaItem.setRefUrl(ref);
 					
-					mediaItem.setShares(webPage.getShares());
+					mediaItem.setShares((long) webPage.getShares());
 				}
 				catch(Exception e) {
 					e.printStackTrace();
@@ -492,6 +535,5 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		
 		return videos;
 	}
-	*/
 	
 }

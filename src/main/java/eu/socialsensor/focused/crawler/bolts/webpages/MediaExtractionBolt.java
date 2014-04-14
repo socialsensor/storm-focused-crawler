@@ -31,6 +31,9 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
+	private static String MEDIA_STREAM = "media";
+	private static String WEBPAGE_STREAM = "webpage";
+	
 	private Logger logger;
 	
 	private OutputCollector _collector;
@@ -41,7 +44,6 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	private static String youtubeClientId = "";
 	private static String youtubeDevKey = "";
 	
-	
 	private static Pattern instagramPattern = Pattern.compile("http://instagram.com/p/([\\w\\-]+)/");
 	private static Pattern youtubePattern = Pattern.compile("http://www.youtube.com/watch?.*v=([a-zA-Z0-9_]+)(&.+=.+)*");
 	private static Pattern vimeoPattern = Pattern.compile("http://vimeo.com/([0-9]+)/*$");
@@ -49,7 +51,9 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	private static Pattern dailymotionPattern = Pattern.compile("http://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-    	declarer.declare(new Fields("url", "expandedUrl", "domain", "type", "content"));
+    	//declarer.declare(new Fields("url", "expandedUrl", "domain", "type", "content"));
+    	declarer.declareStream(MEDIA_STREAM, new Fields("MediaItem"));
+    	declarer.declareStream(WEBPAGE_STREAM, new Fields("WebPage"));
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
@@ -65,9 +69,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		if(webPage == null)
 			return;
 		
-		String url = webPage.getUrl();
 		String expandedUrl = webPage.getExpandedUrl();
-		String domain = webPage.getDomain();
 		
 		try {
 			MediaItem mediaItem = getMediaItem(expandedUrl);	
@@ -77,24 +79,26 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			}
 			
 			synchronized(_collector) {
+				_collector.emit(WEBPAGE_STREAM, tuple(webPage));
 				if(mediaItem != null) { 
-					mediaItem.setPageUrl(expandedUrl);
-					_collector.emit(tuple(url, expandedUrl, domain, "media", mediaItem));
+					_collector.emit(MEDIA_STREAM, tuple(mediaItem));
 				}
 				else {
-					_collector.emit(tuple(url, expandedUrl, domain, "exception", "Cannot find any media item"));
+					//TODO: Emit error tuple
+					//_collector.emit(tuple(url, expandedUrl, domain, "exception", "Cannot find any media item"));
 				}
 			}
 		} catch (Exception e) {
 			logger.error(e);
-			synchronized(_collector) {
-				_collector.emit(tuple(url, expandedUrl, domain, "exception", e.getMessage()));
-			}
+			//synchronized(_collector) {
+				//TODO: Emit error tuple
+				//_collector.emit(tuple(url, expandedUrl, domain, "exception", e.getMessage()));
+			//}
 		}
 
 	}   
 	
-	private MediaItem getMediaItem(String url) throws Exception {
+	private MediaItem getMediaItem(String url) {
 		SocialMediaRetriever retriever = null;
 		String mediaId = null;
 		
@@ -126,14 +130,17 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		if(mediaId == null)
 			return null;
 		
-		MediaItem mediaItem = retriever.getMediaItem(mediaId);
-		if(mediaItem == null) {
-			throw new Exception("Media item is null!");
+		try {
+			MediaItem mediaItem = retriever.getMediaItem(mediaId);
+			if(mediaItem != null) {
+				mediaItem.setPageUrl(url);
+			}
+			//TODO: Check missing user 
+			return mediaItem;
 		}
-		
-		//TODO: Check missing user 
-		
-		return mediaItem;
+		catch(Exception e) {
+			return null;
+		}
 	
 	}
 

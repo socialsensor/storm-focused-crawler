@@ -4,17 +4,11 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.Proxy;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
-
-import com.mongodb.BasicDBObject;
-import com.mongodb.DB;
-import com.mongodb.DBCollection;
-import com.mongodb.MongoClient;
 
 import eu.socialsensor.framework.common.domain.WebPage;
 import static backtype.storm.utils.Utils.tuple;
@@ -39,7 +33,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 	
 	private static int max_redirects = 4;
 	
-	private Set<String> targets = new HashSet<String>();
+	private Set<String> socialMediaTargets = new HashSet<String>();
 
 	private String inputField;
 	
@@ -47,12 +41,12 @@ public class URLExpanderBolt extends BaseRichBolt {
 		
 		this.inputField = inputField;
 		
-		targets.add("vimeo.com");
-		targets.add("instagram.com");
-		targets.add("www.youtube.com");
-		targets.add("twitpic.com");
-		targets.add("dailymotion.com");
-		targets.add("www.facebook.com");
+		socialMediaTargets.add("vimeo.com");
+		socialMediaTargets.add("instagram.com");
+		socialMediaTargets.add("www.youtube.com");
+		socialMediaTargets.add("twitpic.com");
+		socialMediaTargets.add("dailymotion.com");
+		socialMediaTargets.add("www.facebook.com");
 	}
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
@@ -79,10 +73,12 @@ public class URLExpanderBolt extends BaseRichBolt {
 						webPage.setExpandedUrl(expandedUrl);
 						webPage.setDomain(domain);
 						synchronized(_collector) {
-							if(targets.contains(domain)) 
+							if(socialMediaTargets.contains(domain)) {
 								_collector.emit("media", tuple(webPage));
-							else 
-								_collector.emit("article", tuple(webPage));
+							}
+							else {
+								_collector.emit("webpage", tuple(webPage));
+							}
 						}
 					}
 					catch(Exception e) {
@@ -150,7 +146,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 	
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declareStream("media", new Fields("webPage"));
-		declarer.declareStream("article", new Fields("webPage"));
+		declarer.declareStream("webpage", new Fields("webPage"));
 	}
 
 	public static String expand(String shortUrl) throws IOException {
