@@ -10,12 +10,12 @@ import org.apache.log4j.Logger;
 
 import eu.socialsensor.framework.common.domain.MediaItem;
 import eu.socialsensor.framework.common.domain.WebPage;
-import eu.socialsensor.framework.retrievers.socialmedia.MediaRetriever;
-import eu.socialsensor.framework.retrievers.socialmedia.dailymotion.DailyMotionMediaRetriever;
-import eu.socialsensor.framework.retrievers.socialmedia.instagram.InstagramMediaRetriever;
-import eu.socialsensor.framework.retrievers.socialmedia.twitpic.TwitpicMediaRetriever;
-import eu.socialsensor.framework.retrievers.socialmedia.vimeo.VimeoMediaRetriever;
-import eu.socialsensor.framework.retrievers.socialmedia.youtube.YtMediaRetriever;
+import eu.socialsensor.framework.retrievers.socialmedia.SocialMediaRetriever;
+import eu.socialsensor.framework.retrievers.socialmedia.dailymotion.DailyMotionRetriever;
+import eu.socialsensor.framework.retrievers.socialmedia.instagram.InstagramRetriever;
+import eu.socialsensor.framework.retrievers.socialmedia.twitpic.TwitpicRetriever;
+import eu.socialsensor.framework.retrievers.socialmedia.vimeo.VimeoRetriever;
+import eu.socialsensor.framework.retrievers.socialmedia.youtube.YoutubeRetriever;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -49,7 +49,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	private static Pattern dailymotionPattern = Pattern.compile("http://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-    	declarer.declare(new Fields("url", "expandedUrl", "type", "content"));
+    	declarer.declare(new Fields("url", "expandedUrl", "domain", "type", "content"));
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
@@ -67,7 +67,8 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		
 		String url = webPage.getUrl();
 		String expandedUrl = webPage.getExpandedUrl();
-
+		String domain = webPage.getDomain();
+		
 		try {
 			MediaItem mediaItem = getMediaItem(expandedUrl);	
 			
@@ -78,45 +79,45 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			synchronized(_collector) {
 				if(mediaItem != null) { 
 					mediaItem.setPageUrl(expandedUrl);
-					_collector.emit(tuple(url, expandedUrl, "media", mediaItem));
+					_collector.emit(tuple(url, expandedUrl, domain, "media", mediaItem));
 				}
 				else {
-					_collector.emit(tuple(url, expandedUrl, "exception", "Cannot find any media item"));
+					_collector.emit(tuple(url, expandedUrl, domain, "exception", "Cannot find any media item"));
 				}
 			}
 		} catch (Exception e) {
 			logger.error(e);
 			synchronized(_collector) {
-				_collector.emit(tuple(url, expandedUrl, "exception", e.getMessage()));
+				_collector.emit(tuple(url, expandedUrl, domain, "exception", e.getMessage()));
 			}
 		}
 
 	}   
 	
 	private MediaItem getMediaItem(String url) throws Exception {
-		MediaRetriever retriever = null;
+		SocialMediaRetriever retriever = null;
 		String mediaId = null;
 		
 		Matcher matcher;
 		if((matcher = instagramPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			retriever = new InstagramMediaRetriever(instagramSecret, instagramToken);
+			retriever = new InstagramRetriever(instagramSecret, instagramToken);
 		}
 		else if((matcher = youtubePattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			retriever = new YtMediaRetriever(youtubeClientId, youtubeDevKey);
+			retriever = new YoutubeRetriever(youtubeClientId, youtubeDevKey);
 		}
 		else if((matcher = vimeoPattern.matcher(url)).matches()){
 			mediaId = matcher.group(1);
-			retriever = new VimeoMediaRetriever();
+			retriever = new VimeoRetriever();
 		}
 		else if((matcher = twitpicPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			retriever = new TwitpicMediaRetriever();
+			retriever = new TwitpicRetriever();
 		}
 		else if((matcher = dailymotionPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			retriever = new DailyMotionMediaRetriever();
+			retriever = new DailyMotionRetriever();
 		}
 		else {
 			return null;
@@ -127,8 +128,11 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		
 		MediaItem mediaItem = retriever.getMediaItem(mediaId);
 		if(mediaItem == null) {
-			throw new Exception();
+			throw new Exception("Media item is null!");
 		}
+		
+		//TODO: Check missing user 
+		
 		return mediaItem;
 	
 	}

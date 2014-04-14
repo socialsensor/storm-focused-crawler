@@ -84,7 +84,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-    	declarer.declare(new Fields("url", "expandedUrl", "type", "content"));
+    	declarer.declare(new Fields("url", "expandedUrl", "domain", "type", "content"));
     }
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
@@ -93,6 +93,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		logger = Logger.getLogger(ArticleExtractionBolt.class);
 		
 		_collector = collector;
+		
 		_queue = new LinkedBlockingQueue<WebPage>();
 		_tupleQueue =  new LinkedBlockingQueue<List<Object>>();
 		
@@ -197,6 +198,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				
 				String url = webPage.getUrl();
 				String expandedUrl = webPage.getExpandedUrl();
+				String domain = webPage.getDomain();
 				
 				HttpGet httpget = null;
 				try {
@@ -211,7 +213,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					if(!contentType.getMimeType().equals(ContentType.TEXT_HTML.getMimeType())) {
 						System.out.println("Not supported mime type");
 						System.out.println(contentType.getMimeType()+ " - "+ContentType.TEXT_HTML.getMimeType());
-						_tupleQueue.add(tuple(url, expandedUrl, "exception", "Not supported mime type"));
+						_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", "Not supported mime type"));
 						continue;
 					}
 					
@@ -221,15 +223,15 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					Article article = getArticle(webPage, content);
 					
 					if(article != null) { 
-						_tupleQueue.add(tuple(url, expandedUrl, "article", article));
+						_tupleQueue.add(tuple(url, expandedUrl, domain, "article", article));
 					}
 					else {
-						_tupleQueue.add(tuple(url, expandedUrl, "exception", "Article is null!"));
+						_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", "Article is null!"));
 					}
 					
 				} catch (Exception e) {
 					logger.error(e);
-					_tupleQueue.add(tuple(url, expandedUrl, "exception", e.getMessage()));
+					_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", e.getMessage()));
 				}
 				finally {
 					if(httpget != null)
@@ -240,11 +242,10 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		}
 	}
 	
-	private Article getArticle(WebPage webPage, byte[] content) {  
+	public Article getArticle(WebPage webPage, byte[] content) {  
 		
 		String base = webPage.getExpandedUrl();
 		
-		int pageHash = (base.hashCode() & 0x7FFFFFFF);
 	  	try { 
 	  		InputSource articelIS1 = new InputSource(new ByteArrayInputStream(content));
 	  		InputSource articelIS2 = new InputSource(new ByteArrayInputStream(content));
@@ -273,7 +274,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  		Article article = new Article(title, text);
 	  		article.setLowQuality(isLowQuality);
 	  		
-	  		List<MediaItem> mediaItems = extractAricleImages(imgDoc, webPage, base, pageHash, content);		
+	  		List<MediaItem> mediaItems = extractAricleImages(imgDoc, webPage, base, content);		
 	  		//List<MediaItem> mediaItems = extractAllImages(base, title, webPage, pageHash, content);
 	  		
 	  		for(MediaItem mItem : mediaItems) {
@@ -287,8 +288,8 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  	}
 	}
 	
-	public List<MediaItem> extractAricleImages(TextDocument document, WebPage webPage, String base, int pageHash, 
-			byte[] content) throws IOException, BoilerpipeProcessingException {
+	public List<MediaItem> extractAricleImages(TextDocument document, WebPage webPage, String base, byte[] content) 
+			throws IOException, BoilerpipeProcessingException {
 		
 		List<MediaItem> images = new ArrayList<MediaItem>();
 		
@@ -355,8 +356,12 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			
 			mediaItem.setTitle(alt.trim());
 			mediaItem.setDescription(webPage.getTitle());
+			
 			if(w != -1 && h != -1) 
 				mediaItem.setSize(w, h);
+			
+			if(webPage.getDate() != null)
+				mediaItem.setPublicationTime(webPage.getDate().getTime());
 			
 			images.add(mediaItem);
 		}
@@ -364,7 +369,8 @@ public class ArticleExtractionBolt extends BaseRichBolt {
   		return images;
 	}
 	
-	public List<MediaItem> extractAllImages(String baseUri, String title, WebPage webPage, int pageHash, byte[] content) throws IOException {
+	
+	public List<MediaItem> extractAllImages(String baseUri, String title, WebPage webPage, byte[] content) throws IOException {
 		List<MediaItem> images = new ArrayList<MediaItem>();
 		
 		String html = IOUtils.toString(new ByteArrayInputStream(content));
@@ -417,7 +423,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			// Create image unique id
 			int imageHash = (url.hashCode() & 0x7FFFFFFF);
 			
-			mediaItem.setId("Web#"+pageHash+"_"+imageHash);
+			mediaItem.setId("Web#" + imageHash);
 			mediaItem.setStreamId("Web");
 			mediaItem.setType("image");
 			mediaItem.setThumbnail(url.toString());
@@ -425,10 +431,14 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			mediaItem.setPageUrl(baseUri);
 			
 			mediaItem.setShares((long)webPage.getShares());
-			
 			mediaItem.setTitle(alt.trim());
+			mediaItem.setDescription(webPage.getTitle());
+			
 			if(w != -1 && h != -1) 
 				mediaItem.setSize(w, h);
+			
+			if(webPage.getDate() != null)
+				mediaItem.setPublicationTime(webPage.getDate().getTime());
 			
 			images.add(mediaItem);
 		}
