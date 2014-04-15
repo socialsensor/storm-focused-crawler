@@ -56,6 +56,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
+	private static final String SUCCESS = "success";
+	private static final String FAILED = "failed";
+	
 	private static String MEDIA_STREAM = "media";
 	private static String WEBPAGE_STREAM = "webpage";
 	
@@ -220,21 +223,23 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					
 					List<MediaItem> mediaItems = new ArrayList<MediaItem>();
 					boolean parsed = parseWebPage(webPage, content, mediaItems);
-					//System.out.println("parsed: " + parsed);
 					if(parsed) { 
-						//_tupleQueue.add(tuple(url, expandedUrl, domain, "article", article));
+						webPage.setStatus(SUCCESS);
 						_tupleQueue.add(webPage);
 						for(MediaItem mItem : mediaItems) {
 							_tupleQueue.add(mItem);
 						}
 					}
 					else {
-						//_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", "Article is null!"));
+						logger.error("Parsing of " + expandedUrl + " failed.");
+						webPage.setStatus(FAILED);
+						_tupleQueue.add(webPage);
 					}
 					
 				} catch (Exception e) {
 					logger.error(e);
-					//_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", e.getMessage()));
+					webPage.setStatus(FAILED);
+					_tupleQueue.add(webPage);
 				}
 				finally {
 					if(httpget != null)

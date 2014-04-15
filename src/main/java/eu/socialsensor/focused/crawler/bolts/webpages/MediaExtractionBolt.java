@@ -31,6 +31,9 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
+	private static final String SUCCESS = "success";
+	private static final String FAILED = "failed";
+	
 	private static String MEDIA_STREAM = "media";
 	private static String WEBPAGE_STREAM = "webpage";
 	
@@ -44,14 +47,13 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	private static String youtubeClientId = "";
 	private static String youtubeDevKey = "";
 	
-	private static Pattern instagramPattern = Pattern.compile("http://instagram.com/p/([\\w\\-]+)/");
-	private static Pattern youtubePattern = Pattern.compile("http://www.youtube.com/watch?.*v=([a-zA-Z0-9_]+)(&.+=.+)*");
-	private static Pattern vimeoPattern = Pattern.compile("http://vimeo.com/([0-9]+)/*$");
-	private static Pattern twitpicPattern = Pattern.compile("http://twitpic.com/([A-Za-z0-9]+)/*.*$");
-	private static Pattern dailymotionPattern = Pattern.compile("http://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
+	private static Pattern instagramPattern 	= 	Pattern.compile("http://instagram.com/p/([\\w\\-]+)/");
+	private static Pattern youtubePattern 		= 	Pattern.compile("http://www.youtube.com/watch?.*v=([a-zA-Z0-9_]+)(&.+=.+)*");
+	private static Pattern vimeoPattern 		= 	Pattern.compile("http://vimeo.com/([0-9]+)/*$");
+	private static Pattern twitpicPattern 		= 	Pattern.compile("http://twitpic.com/([A-Za-z0-9]+)/*.*$");
+	private static Pattern dailymotionPattern 	= 	Pattern.compile("http://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-    	//declarer.declare(new Fields("url", "expandedUrl", "domain", "type", "content"));
     	declarer.declareStream(MEDIA_STREAM, new Fields("MediaItem"));
     	declarer.declareStream(WEBPAGE_STREAM, new Fields("WebPage"));
     }
@@ -79,21 +81,22 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			}
 			
 			synchronized(_collector) {
+				webPage.setStatus(SUCCESS);
 				_collector.emit(WEBPAGE_STREAM, tuple(webPage));
 				if(mediaItem != null) { 
 					_collector.emit(MEDIA_STREAM, tuple(mediaItem));
 				}
 				else {
-					//TODO: Emit error tuple
-					//_collector.emit(tuple(url, expandedUrl, domain, "exception", "Cannot find any media item"));
+					webPage.setStatus(FAILED);
+					_collector.emit(WEBPAGE_STREAM, tuple(webPage));
 				}
 			}
 		} catch (Exception e) {
 			logger.error(e);
-			//synchronized(_collector) {
-				//TODO: Emit error tuple
-				//_collector.emit(tuple(url, expandedUrl, domain, "exception", e.getMessage()));
-			//}
+			synchronized(_collector) {
+				webPage.setStatus(FAILED);
+				_collector.emit(WEBPAGE_STREAM, tuple(webPage));
+			}
 		}
 
 	}   

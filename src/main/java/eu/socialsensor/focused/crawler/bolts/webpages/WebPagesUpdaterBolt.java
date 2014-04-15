@@ -59,16 +59,23 @@ public class WebPagesUpdaterBolt extends BaseRichBolt {
 			if(webPage == null || _webPageDAO == null)
 				return;
 				
-			UpdateItem o = new UpdateItem();
-			o.setField("status", "processed");
-			o.setField("isArticle", webPage.isArticle());
-			o.setField("text", webPage.getText());
-			o.setField("domain", webPage.getDomain());
-			o.setField("expandedUrl", webPage.getExpandedUrl());
+			if(_webPageDAO.exists(webPage.getUrl())) {
 				
-			_webPageDAO.addWebPage(webPage);
+				// Update existing web page
+				UpdateItem o = new UpdateItem();
+				o.setField("status", webPage.getStatus());
+				o.setField("isArticle", webPage.isArticle());
+				o.setField("text", webPage.getText());
+				o.setField("domain", webPage.getDomain());
+				o.setField("expandedUrl", webPage.getExpandedUrl());
+				
+				_webPageDAO.updateWebPage(webPage.getUrl(), o);
+			}
+			else {
+				// Insert new web page (this should never happen)
+				_webPageDAO.addWebPage(webPage);
+			}
 			
-			//_webPageDAO.updateWebPage(webPage.getUrl(), o);
 			
 		}
 		catch(Exception ex) {
