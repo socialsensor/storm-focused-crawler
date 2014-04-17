@@ -3,27 +3,14 @@ package eu.socialsensor.focused.crawler.bolts.media;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
 
 import javax.imageio.ImageIO;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.DB;
-import com.mongodb.DBCollection;
-import com.mongodb.DBCursor;
-import com.mongodb.DBObject;
-import com.mongodb.MongoClient;
-
 import eu.socialsensor.focused.crawler.models.ImageVector;
-import eu.socialsensor.framework.client.search.visual.JsonResultSet;
-import eu.socialsensor.framework.client.search.visual.JsonResultSet.JsonResult;
 import eu.socialsensor.framework.client.search.visual.VisualIndexHandler;
 import eu.socialsensor.framework.common.domain.MediaItem;
 import gr.iti.mklab.visual.aggregation.VladAggregatorMultipleVocabularies;
@@ -94,8 +81,8 @@ public class VisualIndexerBolt extends BaseRichBolt {
 		if(mediaItem == null)
 			return;
 			
+		ImageVector imgVec = null;
 		try {
-			
 			String id = mediaItem.getId();
 			String url = mediaItem.getUrl();
 			
@@ -105,7 +92,6 @@ public class VisualIndexerBolt extends BaseRichBolt {
 			boolean indexed = false;
 		
 			if(image != null) {
-				
 				ImageVectorization imvec = new ImageVectorization(id, image, targetLengthMax, maxNumPixels);
 				
 				if(mediaItem.getWidth()==null && mediaItem.getHeight()==null) {
@@ -115,6 +101,7 @@ public class VisualIndexerBolt extends BaseRichBolt {
 				ImageVectorizationResult imvr = imvec.call();
 				double[] vector = imvr.getImageVector();
 				
+				imgVec = new ImageVector(id, url, vector);
 				indexed = visualIndex.index(mediaItem.getId(), vector);
 			}
 			
@@ -123,20 +110,21 @@ public class VisualIndexerBolt extends BaseRichBolt {
 			}
 			
 			mediaItem.setVisualIndexed(indexed);
-			_collector.emit(tuple(mediaItem));
+			_collector.emit(tuple(mediaItem, imgVec));
 			
 		} 
 		catch (Exception e) {
 			logger.error(e);
 			mediaItem.setVisualIndexed(false);
-			_collector.emit(tuple(mediaItem));
+			_collector.emit(tuple(mediaItem, imgVec));
 		}
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields("MediaItem"));
+		declarer.declare(new Fields("MediaItem", "ImageVector"));
 	}
 	
+	/*
 	public static void cluster() throws Exception {
 		
 		String learningFiles = "/disk2_data/VisualIndex/learning_files/";
@@ -206,14 +194,15 @@ public class VisualIndexerBolt extends BaseRichBolt {
 		System.out.println("Wait for clusterer to finish!!!");
 		clusterer.join();
 	}
+	*/
 	
+	/*
 	public static class Extractor implements Runnable {
 		ArrayBlockingQueue<ImageVector> queue1, queue2;
 		
 		public Extractor(ArrayBlockingQueue<ImageVector> queue1, ArrayBlockingQueue<ImageVector> queue2) {
 			this.queue1 = queue1;
 			this.queue2 = queue2;
-
 		}
 		
 		public void run() {
@@ -240,8 +229,7 @@ public class VisualIndexerBolt extends BaseRichBolt {
 					ImageVectorizationResult imvr = imvec.call();
 					double[] vector = imvr.getImageVector();
 					
-					vec.v = vector;
-					
+					vec.v = vector;	
 					queue2.put(vec);
 					
 				} catch (Exception e) {
@@ -254,7 +242,9 @@ public class VisualIndexerBolt extends BaseRichBolt {
 		}
 		
 	}
+	*/
 	
+	/*
 	public static class Clusterer implements Runnable {
 
 		private ArrayBlockingQueue<ImageVector> queue;
@@ -343,5 +333,6 @@ public class VisualIndexerBolt extends BaseRichBolt {
 		}
 		
 	}
+	*/
 	
 }

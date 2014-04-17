@@ -28,11 +28,13 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Tuple;
 
+
+
+/**
+ *	@author Manos Schinas - manosetro@iti.gr
+ */
 public class ClustererBolt extends BaseRichBolt {
 
-    /**
-	 * 
-	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
 	Logger logger;

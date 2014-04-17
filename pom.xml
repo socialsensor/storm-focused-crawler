@@ -99,6 +99,11 @@
 			<artifactId>commons-io</artifactId>
 			<version>2.4</version>
 		</dependency>
+		<dependency>
+			<groupId>eu.socialsensor</groupId>
+			<artifactId>mm-concept-detection</artifactId>
+			<version>0.1-SNAPSHOT</version>
+		</dependency>
   	</dependencies>
 	
 	<repositories>

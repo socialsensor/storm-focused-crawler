@@ -2,13 +2,19 @@ package eu.socialsensor.focused.crawler.bolts.media;
 
 import static backtype.storm.utils.Utils.tuple;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 
+import eu.socialsensor.framework.client.dao.MediaItemDAO;
+import eu.socialsensor.framework.client.dao.StreamUserDAO;
 import eu.socialsensor.framework.client.dao.impl.MediaItemDAOImpl;
+import eu.socialsensor.framework.client.dao.impl.StreamUserDAOImpl;
 import eu.socialsensor.framework.client.mongo.UpdateItem;
+import eu.socialsensor.framework.common.domain.Concept;
 import eu.socialsensor.framework.common.domain.MediaItem;
+import eu.socialsensor.framework.common.domain.StreamUser;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -28,14 +34,24 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	private String mongodbHostname;
 	private String mediaItemsDB;
 	private String mediaItemsCollection;
-
-	private MediaItemDAOImpl _mediaItemDAO;
+	private String streamUsersDB;
+	private String streamUsersCollection;
+	
+	private MediaItemDAO _mediaItemDAO;
+	private StreamUserDAO _streamUsersDAO;
 	private OutputCollector _collector;
 
-	public MediaUpdaterBolt(String mongodbHostname, String mediaItemsDB, String mediaItemsCollection) {
+
+
+	public MediaUpdaterBolt(String mongodbHostname, String mediaItemsDB, String mediaItemsCollection, 
+			String streamUsersDB, String streamUsersCollection) {
+		
 		this.mongodbHostname = mongodbHostname;
 		this.mediaItemsDB = mediaItemsDB;
 		this.mediaItemsCollection = mediaItemsCollection;
+		
+		this.streamUsersDB = streamUsersDB;
+		this.streamUsersCollection = streamUsersCollection;
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -48,6 +64,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 		logger = Logger.getLogger(MediaUpdaterBolt.class);
 		try {
 			_mediaItemDAO = new MediaItemDAOImpl(mongodbHostname, mediaItemsDB, mediaItemsCollection);
+			_streamUsersDAO = new StreamUserDAOImpl(mongodbHostname, streamUsersDB, streamUsersCollection);
 			_collector = collector;
 		} catch (Exception e) {
 			logger.error(e);
@@ -76,11 +93,23 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 						update.setField("width", width);
 					}
 				
+					List<Concept> concepts = mediaItem.getConcepts();
+					if(concepts != null) {
+						update.setField("concepts", concepts);
+					}
+					
 					_mediaItemDAO.updateMediaItem(mediaItem.getId(), update);
 				}
 				else {
 					_collector.emit(tuple(mediaItem));
 					_mediaItemDAO.addMediaItem(mediaItem);
+					
+					StreamUser user = mediaItem.getUser();
+					if(user != null) {
+						if(!_streamUsersDAO.exists(user.getId())) {
+							_streamUsersDAO.insertStreamUser(user);
+						}
+					}
 				}
 			}
 			catch(Exception e) {

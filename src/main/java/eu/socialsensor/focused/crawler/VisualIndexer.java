@@ -1,11 +1,14 @@
 package eu.socialsensor.focused.crawler;
 
+import java.net.UnknownHostException;
+
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
-import eu.socialsensor.focused.crawler.bolts.media.ClustererBolt;
+import eu.socialsensor.focused.crawler.bolts.media.ConceptDetectionBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaRankerBolt;
+import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.media.VisualIndexerBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
 import backtype.storm.Config;
@@ -15,13 +18,15 @@ import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.InvalidTopologyException;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.topology.base.BaseRichSpout;
 
 public class VisualIndexer {
 
 	/**
 	 * @param args
+	 * @throws UnknownHostException 
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws UnknownHostException {
 		
 		Logger logger = Logger.getLogger(VisualIndexer.class);
 		
@@ -33,19 +38,26 @@ public class VisualIndexer {
 				config = new XMLConfiguration("./conf/focused.crawler.xml");
 		}
 		catch(ConfigurationException ex) {
+			logger.error(ex);
 			return;
 		}
 		
 		String redisHost = config.getString("redis.hostname", "xxx.xxx.xxx.xxx");
+		String redisMediaChannel = config.getString("redis.mediaItemsChannel", "media");
 		
-		String mongoHost = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
+		
+		String mongodbHostname = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
 		String mediaItemsDB = config.getString("mongodb.mediaItemsDB", "Prototype");
-		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems");
+		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems_WP");
+		String streamUsersDB = config.getString("mongodb.streamUsersDB", "Prototype");
+		String streamUsersCollection = config.getString("mongodb.streamUsersCollection", "StreamUsers");
 		String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
 		String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
 		
-		String indexHostname = config.getString("visualindex.hostname");
-		String indexCollection = config.getString("visualindex.collection");
+		String conceptDetectorMatlabfile = config.getString("conceptdetector.matlabfile");
+		
+		String visualIndexHostname = config.getString("visualindex.hostname");
+		String visualIndexCollection = config.getString("visualindex.collection");
 		
 		String learningFiles = config.getString("visualindex.learningfiles");
 		if(!learningFiles.endsWith("/"))
@@ -58,43 +70,51 @@ public class VisualIndexer {
 				learningFiles + "surf_l2_128c_3.csv" };
 		
 		String pcaFile = learningFiles + "pca_surf_4x128_32768to1024.txt";
-	
 		
-		RedisSpout rediSpout = new RedisSpout(redisHost, "media", "id");
+		BaseRichSpout miSpout;
+		IRichBolt miRanker, visualIndexer, clusterer, mediaUpdater, conceptDetector;
 		
-		IRichBolt visualIndexer, ranker, clusterer;
 		try {
-			ranker = new MediaRankerBolt("media");
-			visualIndexer = new VisualIndexerBolt(indexHostname, indexCollection, codebookFiles, pcaFile);
-			//updater = new MediaUpdaterBolt(mongoHost, mediaItemsDB, mediaItemsCollection);
-			clusterer = new ClustererBolt(mongoHost, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, indexHostname, indexCollection);
+			miSpout = new RedisSpout(redisHost, redisMediaChannel, "id");	
+			miRanker = new MediaRankerBolt(redisMediaChannel);
+					
+			visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
+			//clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection);
+			conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
 			
+			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
 		} catch (Exception e) {
+			logger.error(e);
 			return;
 		}
 		
+		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
+		builder.setSpout("miInjector", miSpout, 1);
+		
+		builder.setBolt("miRanker", miRanker, 4).shuffleGrouping("miInjector");
+
+        builder.setBolt("indexer", visualIndexer, 16).shuffleGrouping("miRanker");
+        //builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
+        builder.setBolt("conceptDetector", conceptDetector, 1).shuffleGrouping("indexer");
         
-		builder.setSpout("injector", rediSpout, 1);
-        builder.setBolt("ranker", ranker, 4).shuffleGrouping("injector");
-        builder.setBolt("indexer", visualIndexer, 16).shuffleGrouping("ranker");
-        builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");
-		//builder.setBolt("updater", updater, 1).shuffleGrouping("indexer");
+		builder.setBolt("mediaupdater", mediaUpdater, 1)
+			.shuffleGrouping("conceptDetector");
+		
+        // Run topology
+        String name = config.getString("topology.focusedCrawlerName", "VisualIndexer");
+        boolean local = config.getBoolean("topology.local", true);
         
         Config conf = new Config();
         conf.setDebug(false);
         
-        // Run topology
-        String visualIndexerName = config.getString("topology.visualIndexerName", "visual-indexer");
-        boolean local = config.getBoolean("topology.local", true);
-        
         if(!local) {
-        	logger.info("Submit topology to Storm cluster");
+        	System.out.println("Submit topology to Storm cluster");
 			try {
 				int workers = config.getInt("topology.workers", 2);
 				conf.setNumWorkers(workers);
 				
-				StormSubmitter.submitTopology(visualIndexerName, conf, builder.createTopology());
+				StormSubmitter.submitTopology(name, conf, builder.createTopology());
 			}
 			catch(NumberFormatException e) {
 				logger.error(e);
@@ -107,9 +127,7 @@ public class VisualIndexer {
 		} else {
 			logger.info("Run topology in local mode");
 			LocalCluster cluster = new LocalCluster();
-			cluster.submitTopology(visualIndexerName, conf, builder.createTopology());
+			cluster.submitTopology(name, conf, builder.createTopology());
 		}
-        
 	}
-
 }

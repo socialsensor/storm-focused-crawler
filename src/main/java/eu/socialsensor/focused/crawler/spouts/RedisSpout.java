@@ -66,14 +66,13 @@ public class RedisSpout extends BaseRichSpout {
 
 				@Override
 				public void onMessage(String channel, String message) {
-					
 					DBObject obj = (DBObject) JSON.parse(message);
 					String id = (String) obj.get(idField);
 					if(!ids.contains(id)) {
 						queue.offer(message);
 						ids.add(id);
-						if(ids.size() % 50 == 0) {
-							logger.info(ids.size() + " messages received. " + queue.size() + " in queue.");
+						if(ids.size() % 200 == 0) {
+							logger.info(ids.size() + " messages received. " + queue.size() + " in redis spout queue.");
 						}
 					}
 				}

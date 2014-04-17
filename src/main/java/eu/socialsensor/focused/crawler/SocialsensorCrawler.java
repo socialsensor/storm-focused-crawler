@@ -6,10 +6,8 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
-import eu.socialsensor.focused.crawler.bolts.media.ClustererBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaRankerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
-import eu.socialsensor.focused.crawler.bolts.media.VisualIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
@@ -54,11 +52,15 @@ public class SocialsensorCrawler {
 		String mongodbHostname = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
 		String mediaItemsDB = config.getString("mongodb.mediaItemsDB", "Prototype");
 		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems_WP");
+		String streamUsersDB = config.getString("mongodb.streamUsersDB", "Prototype");
+		String streamUsersCollection = config.getString("mongodb.streamUsersCollection", "StreamUsers");
 		String webPagesDB = config.getString("mongodb.webPagesDB", "Prototype");
 		String webPagesCollection = config.getString("mongodb.webPagesCollection", "WebPages");
-		String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
-		String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
+		//String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
+		//String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
 		
+		
+		/*
 		String visualIndexHostname = config.getString("visualindex.hostname");
 		String visualIndexCollection = config.getString("visualindex.collection");
 		
@@ -73,6 +75,7 @@ public class SocialsensorCrawler {
 				learningFiles + "surf_l2_128c_3.csv" };
 		
 		String pcaFile = learningFiles + "pca_surf_4x128_32768to1024.txt";
+		*/
 		
 		String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
 		String textIndexCollection = config.getString("textindex.collection", "WebPages");
@@ -80,9 +83,9 @@ public class SocialsensorCrawler {
 		
 		BaseRichSpout wpSpout, miSpout;
 		IRichBolt wpRanker, miRanker;
-		IRichBolt urlExpander, articleExtraction, mediaExtraction, updater, textIndexer;
-		IRichBolt visualIndexer, clusterer, mediaUpdater;
-		IRichBolt miEmitter;
+		IRichBolt urlExpander, articleExtraction, mediaExtraction;
+		IRichBolt mediaUpdater, miEmitter, updater, textIndexer;
+		//IRichBolt visualIndexer, clusterer;
 		
 		try {
 			wpSpout = new RedisSpout(redisHost, "webpages", "url");
@@ -102,7 +105,7 @@ public class SocialsensorCrawler {
 					
 			//visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
 			//clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, indexHostname, indexCollection);
-			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection);
+			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
 		} catch (Exception e) {
 			logger.error(e);
 			return;
@@ -135,7 +138,7 @@ public class SocialsensorCrawler {
         //builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
 		
         // Run topology
-        String name = config.getString("topology.focusedCrawlerName", "FocusedCrawler");
+        String name = "SocialsensorCrawler";
         boolean local = config.getBoolean("topology.local", true);
         
         Config conf = new Config();

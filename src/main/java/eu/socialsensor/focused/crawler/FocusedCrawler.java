@@ -6,9 +6,12 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
+import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.RedisBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.TextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.URLExpanderBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.WebPagesUpdaterBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
@@ -48,46 +51,60 @@ public class FocusedCrawler {
 		String mongodbHostname = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
 		String mediaItemsDB = config.getString("mongodb.mediaItemsDB", "Prototype");
 		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems_WP");
+		String streamUsersDB = config.getString("mongodb.streamUsersDB", "Prototype");
+		String streamUsersCollection = config.getString("mongodb.streamUsersCollection", "StreamUsers");
 		String webPagesDB = config.getString("mongodb.webPagesDB", "Prototype");
 		String webPagesCollection = config.getString("mongodb.webPagesCollection", "WebPages");
 		
+		String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
+		String textIndexCollection = config.getString("textindex.collection", "WebPages");
+		String textIndexService = textIndexHostname + "/" + textIndexCollection;
 		
-		//String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
-		//String textIndexCollection = config.getString("textindex.collection", "WebPagesP");
+		BaseRichSpout wpSpout;
+		IRichBolt wpRanker, mediaUpdater, miEmitter, urlExpander;
+		IRichBolt articleExtraction, mediaExtraction, updater, textIndexer;
 		
-		BaseRichSpout spout;
-		IRichBolt urlExpander, ranker, articleExtraction, mediaExtraction, updater;
 		try {
-			//BaseRichSpout spout = new MongoDbSpout(mongodbHostname, mongoDBName, webPagesCollection, query);
-			spout = new RedisSpout(redisHost, "webpages", "url");
-			
+			wpSpout = new RedisSpout(redisHost, "webpages", "url");
+			wpRanker = new RankerBolt("webpages");
 			urlExpander = new URLExpanderBolt("webpages");
-			ranker = new RankerBolt("webpages");
+			
 			articleExtraction = new ArticleExtractionBolt(48);
 			mediaExtraction = new MediaExtractionBolt();
 			updater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
+			textIndexer = new TextIndexerBolt(textIndexService);
+			
+			miEmitter = new RedisBolt(redisHost, "media");
+
+			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
 		} catch (Exception e) {
 			logger.error(e);
 			return;
 		}
 		
-		
-		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
-		builder.setSpout("injector", spout, 1);
-        
-		builder.setBolt("ranker", ranker, 4).shuffleGrouping("injector");
-		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("ranker");
-		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "article");
+		builder.setSpout("wpInjector", wpSpout, 1);
+		
+		builder.setBolt("wpRanker", wpRanker, 4).shuffleGrouping("wpInjector");
+		
+		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpRanker");
+		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "webpage");
 		builder.setBolt("mediaExtraction", mediaExtraction, 4).shuffleGrouping("expander", "media");
 		
-		builder.setBolt("updater", updater, 4).shuffleGrouping("articleExtraction").shuffleGrouping("mediaExtraction");
+		builder.setBolt("updater", updater, 4)
+			.shuffleGrouping("articleExtraction", "webpage")
+			.shuffleGrouping("mediaExtraction", "webpage");
 		
-		//String textIndexService = textIndexHostname + "/" + textIndexCollection;
-		//WebPagesIndexerBolt indexer = new WebPagesIndexerBolt(textIndexService, mongodbHostname, mongoDBName, webPagesCollection);
-		//builder.setBolt("text-indexer", indexer, 1).shuffleGrouping("updater");
-		       
+		builder.setBolt("textIndexer", textIndexer, 1)
+			.shuffleGrouping("articleExtraction", "webpage");
+		
+		builder.setBolt("mediaupdater", mediaUpdater, 1)
+			.shuffleGrouping("articleExtraction", "media")
+			.shuffleGrouping("mediaExtraction", "media");
+		
+		builder.setBolt("miEmitter", miEmitter, 1).shuffleGrouping("mediaupdater");
+		
         // Run topology
         String name = config.getString("topology.focusedCrawlerName", "FocusedCrawler");
         boolean local = config.getBoolean("topology.local", true);

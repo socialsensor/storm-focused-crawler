@@ -2,6 +2,7 @@ package eu.socialsensor.focused.crawler.bolts.webpages;
 
 import static backtype.storm.utils.Utils.tuple;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -9,6 +10,7 @@ import java.util.regex.Pattern;
 import org.apache.log4j.Logger;
 
 import eu.socialsensor.framework.common.domain.MediaItem;
+import eu.socialsensor.framework.common.domain.StreamUser;
 import eu.socialsensor.framework.common.domain.WebPage;
 import eu.socialsensor.framework.retrievers.socialmedia.SocialMediaRetriever;
 import eu.socialsensor.framework.retrievers.socialmedia.dailymotion.DailyMotionRetriever;
@@ -22,7 +24,6 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
-
 
 public class MediaExtractionBolt extends BaseRichBolt {
 
@@ -53,6 +54,8 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	private static Pattern twitpicPattern 		= 	Pattern.compile("http://twitpic.com/([A-Za-z0-9]+)/*.*$");
 	private static Pattern dailymotionPattern 	= 	Pattern.compile("http://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
 	
+	private Map<String, SocialMediaRetriever> retrievers = new HashMap<String, SocialMediaRetriever>();
+	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
     	declarer.declareStream(MEDIA_STREAM, new Fields("MediaItem"));
     	declarer.declareStream(WEBPAGE_STREAM, new Fields("WebPage"));
@@ -62,6 +65,14 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			OutputCollector collector) {
 		this._collector = collector;  		
 		logger = Logger.getLogger(MediaExtractionBolt.class);
+		
+
+		retrievers.put("instagram", new InstagramRetriever(instagramSecret, instagramToken));
+		retrievers.put("youtube", new YoutubeRetriever(youtubeClientId, youtubeDevKey));
+		retrievers.put("vimeo", new VimeoRetriever());
+		retrievers.put("twitpic", new TwitpicRetriever());
+		retrievers.put("dailymotion", new DailyMotionRetriever());
+		
 	}
 
 	public void execute(Tuple tuple) {
@@ -108,29 +119,34 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		Matcher matcher;
 		if((matcher = instagramPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			retriever = new InstagramRetriever(instagramSecret, instagramToken);
+			//retriever = new InstagramRetriever(instagramSecret, instagramToken);
+			retriever = retrievers.get("instagram");
 		}
 		else if((matcher = youtubePattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			retriever = new YoutubeRetriever(youtubeClientId, youtubeDevKey);
+			//retriever = new YoutubeRetriever(youtubeClientId, youtubeDevKey);
+			retriever = retrievers.get("youtube");
 		}
 		else if((matcher = vimeoPattern.matcher(url)).matches()){
 			mediaId = matcher.group(1);
-			retriever = new VimeoRetriever();
+			//retriever = new VimeoRetriever();
+			retriever = retrievers.get("vimeo");
 		}
 		else if((matcher = twitpicPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			retriever = new TwitpicRetriever();
+			//retriever = new TwitpicRetriever();
+			retriever = retrievers.get("twitpic");
 		}
 		else if((matcher = dailymotionPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			retriever = new DailyMotionRetriever();
+			//retriever = new DailyMotionRetriever();
+			retriever = retrievers.get("dailymotion");
 		}
 		else {
 			return null;
 		}
 		
-		if(mediaId == null)
+		if(mediaId == null || retriever == null)
 			return null;
 		
 		try {
@@ -138,10 +154,21 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			if(mediaItem != null) {
 				mediaItem.setPageUrl(url);
 			}
-			//TODO: Check missing user 
+			StreamUser streamUser = mediaItem.getUser();
+			String userid = mediaItem.getUserId();
+			if(streamUser == null || userid == null) {
+				streamUser = retriever.getStreamUser(userid);
+				if(streamUser == null) {
+					throw new Exception("Missing " + mediaItem.getStreamId() + " user: " + userid);
+				}
+				mediaItem.setUser(streamUser);
+				mediaItem.setUserId(streamUser.getUserid());
+			}
+			
 			return mediaItem;
 		}
 		catch(Exception e) {
+			logger.error(e);
 			return null;
 		}
 	

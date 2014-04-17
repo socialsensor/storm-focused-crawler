@@ -3,7 +3,7 @@ package eu.socialsensor.focused.crawler.bolts.media;
 import java.util.Map;
 
 import eu.socialsensor.framework.common.domain.MediaItem;
-import eu.socialsensor.framework.common.factories.ObjectFactory;
+import eu.socialsensor.framework.common.factories.ItemFactory;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -37,9 +37,8 @@ public class MediaRankerBolt extends BaseRichBolt {
 
 	public void execute(Tuple tuple) {
 		String json = tuple.getStringByField(inputField);
-		MediaItem mediaItem = ObjectFactory.createMediaItem(json);
-		
-		System.out.println(mediaItem.toJSONString());
+		MediaItem mediaItem = ItemFactory.createMediaItem(json);
+
 		Long shares = mediaItem.getShares();
 		
 		double sharesScore = 1 - Math.exp(-0.05 * shares);

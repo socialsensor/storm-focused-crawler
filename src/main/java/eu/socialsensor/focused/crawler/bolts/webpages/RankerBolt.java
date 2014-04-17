@@ -10,7 +10,7 @@ import org.apache.log4j.Logger;
 
 import eu.socialsensor.focused.crawler.models.RankedWebPage;
 import eu.socialsensor.framework.common.domain.WebPage;
-import eu.socialsensor.framework.common.factories.ObjectFactory;
+import eu.socialsensor.framework.common.factories.ItemFactory;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -56,7 +56,7 @@ public class RankerBolt extends BaseRichBolt {
 	public void execute(Tuple input) {
 		try {
 			String json = input.getStringByField(inputField);
-			WebPage webPage = ObjectFactory.createWebPage(json);
+			WebPage webPage = ItemFactory.createWebPage(json);
 			if(webPage != null) {
 				double score = getScore(webPage);
 				RankedWebPage rankedWebPage = new RankedWebPage(webPage, score);

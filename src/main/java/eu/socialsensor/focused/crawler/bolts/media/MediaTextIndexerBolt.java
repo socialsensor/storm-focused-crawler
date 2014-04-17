@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 
-import eu.socialsensor.focused.crawler.FocusedCrawler;
 import eu.socialsensor.focused.crawler.models.Article;
 import eu.socialsensor.framework.client.search.solr.SolrMediaItemHandler;
 import eu.socialsensor.framework.common.domain.MediaItem;
