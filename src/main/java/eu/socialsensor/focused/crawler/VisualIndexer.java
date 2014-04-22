@@ -6,10 +6,12 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
+import eu.socialsensor.focused.crawler.bolts.media.ClustererBolt;
 import eu.socialsensor.focused.crawler.bolts.media.ConceptDetectionBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaRankerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.media.VisualIndexerBolt;
+import eu.socialsensor.focused.crawler.bolts.metrics.MediaCounterBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
@@ -72,14 +74,15 @@ public class VisualIndexer {
 		String pcaFile = learningFiles + "pca_surf_4x128_32768to1024.txt";
 		
 		BaseRichSpout miSpout;
-		IRichBolt miRanker, visualIndexer, clusterer, mediaUpdater, conceptDetector;
+		IRichBolt miRanker, mediaCounter, visualIndexer, clusterer, mediaUpdater, conceptDetector;
 		
 		try {
 			miSpout = new RedisSpout(redisHost, redisMediaChannel, "id");	
 			miRanker = new MediaRankerBolt(redisMediaChannel);
-					
+			
+			mediaCounter = new MediaCounterBolt(mongodbHostname, "Statistics");
 			visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
-			//clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection);
+			clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection);
 			conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
 			
 			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
@@ -94,6 +97,7 @@ public class VisualIndexer {
 		
 		builder.setBolt("miRanker", miRanker, 4).shuffleGrouping("miInjector");
 
+		builder.setBolt("counter", mediaCounter, 1).shuffleGrouping("miRanker");
         builder.setBolt("indexer", visualIndexer, 16).shuffleGrouping("miRanker");
         //builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
         builder.setBolt("conceptDetector", conceptDetector, 1).shuffleGrouping("indexer");
