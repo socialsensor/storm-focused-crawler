@@ -1,11 +1,12 @@
 package eu.socialsensor.focused.crawler.bolts.media;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.log4j.Logger;
 
-import eu.socialsensor.focused.crawler.models.Article;
 import eu.socialsensor.framework.client.search.solr.SolrMediaItemHandler;
 import eu.socialsensor.framework.common.domain.MediaItem;
 import backtype.storm.task.OutputCollector;
@@ -29,6 +30,8 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 	private String collection;
 
 	private SolrMediaItemHandler solrMediaHandler;
+
+	private ArrayBlockingQueue<MediaItem> queue;
 	
 	public MediaTextIndexerBolt(String hostname, String service, String collection) {
 		this.hostname = hostname;
@@ -40,42 +43,32 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
     	
     }
 
-	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, OutputCollector collector) {
+	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
+			OutputCollector collector) {
 		logger = Logger.getLogger(MediaTextIndexerBolt.class);
 		
+		queue = new ArrayBlockingQueue<MediaItem>(5000);
 		try {
 			solrMediaHandler = SolrMediaItemHandler.getInstance(hostname+"/"+service+"/"+collection);
 		} catch (Exception e) {
 			e.printStackTrace();
-			logger.error(e);
 			solrMediaHandler = null;
+			logger.error(e);
 		}
+		
+		Thread t = new Thread(new TextIndexer());
+		t.start();
 	}
 
 	public void execute(Tuple tuple) {
 		
 		try {
-			String url = tuple.getStringByField("url");
-			String type = tuple.getStringByField("type");
+			MediaItem mediaItem = (MediaItem) tuple.getValueByField("MediaItem");
 		
-			if(url == null || type == null || solrMediaHandler==null)
+			if(mediaItem == null || solrMediaHandler == null)
 				return;
-		
-			if(type.equals("media")) {
-				MediaItem mediaItem = (MediaItem) tuple.getValueByField("content");
-				solrMediaHandler.insertMediaItem(mediaItem);
-			}
-			else if(type.equals("article")) {
-				Article article = (Article) tuple.getValueByField("content");
-
-				List<MediaItem> mediaItems = article.getMediaItems();	
-				solrMediaHandler.insertMediaItems(mediaItems);
-				
-			}
-			else {
-				//Nothing todo
-				logger.error("Unsupported type!");
-			}
+			
+			queue.add(mediaItem);
 		}
 		catch(Exception ex) {
 			ex.printStackTrace();
@@ -84,4 +77,29 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 		
 	}
  
+	public class TextIndexer implements Runnable {
+
+		public void run() {
+			while(true) {
+				try {
+					Thread.sleep(60 * 1000);
+
+					List<MediaItem> mItems = new ArrayList<MediaItem>();
+					queue.drainTo(mItems);
+					boolean inserted = solrMediaHandler.insertMediaItems(mItems);
+					
+					if(inserted) {
+						logger.info(mItems.size() + " media items indexed in Solr");
+					}
+					else {
+						logger.error("Indexing in Solr failed for MediaItem");
+					}
+				} catch (Exception e) {
+					logger.error(e);
+					continue;
+				}
+			}
+		}
+		
+	}
 }
