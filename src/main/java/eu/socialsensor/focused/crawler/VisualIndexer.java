@@ -6,7 +6,6 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
-import eu.socialsensor.focused.crawler.bolts.media.ClustererBolt;
 import eu.socialsensor.focused.crawler.bolts.media.ConceptDetectionBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaRankerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
@@ -53,8 +52,8 @@ public class VisualIndexer {
 		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems_WP");
 		String streamUsersDB = config.getString("mongodb.streamUsersDB", "Prototype");
 		String streamUsersCollection = config.getString("mongodb.streamUsersCollection", "StreamUsers");
-		String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
-		String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
+		//String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
+		//String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
 		
 		String conceptDetectorMatlabfile = config.getString("conceptdetector.matlabfile");
 		
@@ -74,15 +73,16 @@ public class VisualIndexer {
 		String pcaFile = learningFiles + "pca_surf_4x128_32768to1024.txt";
 		
 		BaseRichSpout miSpout;
-		IRichBolt miRanker, mediaCounter, visualIndexer, clusterer, mediaUpdater, conceptDetector;
+		IRichBolt miRanker, mediaCounter, visualIndexer, mediaUpdater, conceptDetector;
+		//IRichBolt clusterer;
 		
 		try {
 			miSpout = new RedisSpout(redisHost, redisMediaChannel, "id");	
 			miRanker = new MediaRankerBolt(redisMediaChannel);
 			
-			mediaCounter = new MediaCounterBolt(mongodbHostname, "Statistics");
+			mediaCounter = new MediaCounterBolt(mongodbHostname, "Prototype");
 			visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
-			clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection);
+			//clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection);
 			conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
 			
 			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);

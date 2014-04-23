@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.log4j.Logger;
+
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
@@ -34,6 +36,8 @@ public class MediaCounterBolt extends BaseRichBolt {
 	private String mongoHostName;
 
 	private String mongodbName;
+
+	private Logger logger;
 	
 
 	public MediaCounterBolt(String mongoHostName, String mongodbName) {
@@ -43,6 +47,8 @@ public class MediaCounterBolt extends BaseRichBolt {
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
+		
+		logger = Logger.getLogger(MediaCounterBolt.class);
 		
 		try {
 			MongoClient client = new MongoClient(mongoHostName);
@@ -62,7 +68,6 @@ public class MediaCounterBolt extends BaseRichBolt {
 		if(mediaItem == null)
 			return;
 		
-
 		try {
 			URL mediaItemUrl = new URL(mediaItem.getUrl());
 			String domain = mediaItemUrl.getHost();
@@ -98,7 +103,6 @@ public class MediaCounterBolt extends BaseRichBolt {
 			contributors.put(contributor, ++count);
 		}
 		
-		
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -124,29 +128,33 @@ public class MediaCounterBolt extends BaseRichBolt {
 					continue;
 				}
 				
+				logger.info("============ Update Counters ============= ");
 				synchronized(tags) {
+					logger.info(tags.size() + " tags to be updated");
 					for(Entry<String, Integer> tagEntry : tags.entrySet()) {
 						DBObject q = new BasicDBObject("tag", tagEntry.getKey());
 						DBObject o = new BasicDBObject("$inc", new BasicDBObject("count", tagEntry.getValue()));
-						_tagsCollection.update(q, o);
+						_tagsCollection.update(q, o, true, false);
 					}
 					tags.clear();
 				}
 				
 				synchronized(domains) {
+					logger.info(domains.size() + " domains to be updated");
 					for(Entry<String, Integer> domainEntry : domains.entrySet()) {
 						DBObject q = new BasicDBObject("domain", domainEntry.getKey());
 						DBObject o = new BasicDBObject("$inc", new BasicDBObject("count", domainEntry.getValue()));
-						_domainsCollection.update(q, o);
+						_domainsCollection.update(q, o, true, false);
 					}
 					domains.clear();
 				}
 				
 				synchronized(contributors) {
+					logger.info(contributors.size() + " contributors to be updated");
 					for(Entry<String, Integer> contributorEntry : contributors.entrySet()) {
 						DBObject q = new BasicDBObject("contributor", contributorEntry.getKey());
 						DBObject o = new BasicDBObject("$inc", new BasicDBObject("count", contributorEntry.getValue()));
-						_contributorsCollection.update(q, o);
+						_contributorsCollection.update(q, o, true, false);
 					}
 					contributors.clear();
 				}
