@@ -6,8 +6,10 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
+import eu.socialsensor.focused.crawler.bolts.media.ClustererBolt;
 import eu.socialsensor.focused.crawler.bolts.media.ConceptDetectionBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaRankerBolt;
+import eu.socialsensor.focused.crawler.bolts.media.MediaTextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.media.VisualIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.metrics.MediaCounterBolt;
@@ -24,8 +26,18 @@ import backtype.storm.topology.base.BaseRichSpout;
 public class VisualIndexer {
 
 	/**
-	 * @param args
-	 * @throws UnknownHostException 
+	 *	@author Manos Schinas - manosetro@iti.gr
+	 *
+	 *	Entry class for distributed visual indexing. 
+	 *  This class defines a storm-based pipeline (topology) for the processing of MediaItems 
+	 *  received from a Redis pub/sub channel. 
+	 *  
+	 * 	The main steps in the topology are: FeatureExtraction/VisualIndexing, ConceptDetection, TextIndexing,
+	 *  VisualClustering and media-based Statistics (e.g top tags, top users etc.)
+	 *  
+	 *  For more information on Storm distributed processing check this tutorial:
+	 *  https://github.com/nathanmarz/storm/wiki/Tutorial
+	 *  
 	 */
 	public static void main(String[] args) throws UnknownHostException {
 		
@@ -46,16 +58,19 @@ public class VisualIndexer {
 		String redisHost = config.getString("redis.hostname", "xxx.xxx.xxx.xxx");
 		String redisMediaChannel = config.getString("redis.mediaItemsChannel", "media");
 		
-		
 		String mongodbHostname = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
 		String mediaItemsDB = config.getString("mongodb.mediaItemsDB", "Prototype");
-		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems_WP");
+		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems");
 		String streamUsersDB = config.getString("mongodb.streamUsersDB", "Prototype");
 		String streamUsersCollection = config.getString("mongodb.streamUsersCollection", "StreamUsers");
-		//String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
-		//String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
+		String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
+		String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
 		
 		String conceptDetectorMatlabfile = config.getString("conceptdetector.matlabfile");
+		
+		String textIndexHostname = config.getString("textindex.hostname", "http://xxx.xxx.xxx.xxx:8080/solr");
+		String textIndexCollection = config.getString("textindex.collections.media", "MediaItems");
+		String mediaTextIndexService = textIndexHostname + "/" + textIndexCollection;
 		
 		String visualIndexHostname = config.getString("visualindex.hostname");
 		String visualIndexCollection = config.getString("visualindex.collection");
@@ -74,7 +89,7 @@ public class VisualIndexer {
 		
 		BaseRichSpout miSpout;
 		IRichBolt miRanker, mediaCounter, visualIndexer, mediaUpdater, conceptDetector;
-		//IRichBolt clusterer;
+		IRichBolt mediaTextIndexer, clusterer;
 		
 		try {
 			miSpout = new RedisSpout(redisHost, redisMediaChannel, "id");	
@@ -82,10 +97,11 @@ public class VisualIndexer {
 			
 			mediaCounter = new MediaCounterBolt(mongodbHostname, "Prototype");
 			visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
-			//clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection);
+			clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection);
 			conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
 			
 			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
+			mediaTextIndexer = new MediaTextIndexerBolt(mediaTextIndexService);
 		} catch (Exception e) {
 			logger.error(e);
 			return;
@@ -99,14 +115,14 @@ public class VisualIndexer {
 
 		builder.setBolt("counter", mediaCounter, 1).shuffleGrouping("miRanker");
         builder.setBolt("indexer", visualIndexer, 16).shuffleGrouping("miRanker");
-        //builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
+        builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
         builder.setBolt("conceptDetector", conceptDetector, 1).shuffleGrouping("indexer");
         
-		builder.setBolt("mediaupdater", mediaUpdater, 1)
-			.shuffleGrouping("conceptDetector");
+		builder.setBolt("mediaupdater", mediaUpdater, 1).shuffleGrouping("conceptDetector");
+		builder.setBolt("mediaTextIndexer", mediaTextIndexer, 1).shuffleGrouping("conceptDetector");
 		
         // Run topology
-        String name = config.getString("topology.focusedCrawlerName", "VisualIndexer");
+        String name = config.getString("topology.visualIndexerName", "VisualIndexer");
         boolean local = config.getBoolean("topology.local", true);
         
         Config conf = new Config();

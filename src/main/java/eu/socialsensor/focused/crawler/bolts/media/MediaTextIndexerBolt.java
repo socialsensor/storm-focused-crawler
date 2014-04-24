@@ -25,18 +25,14 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 	
 	private Logger logger;
 	
-	private String hostname;
 	private String service;
-	private String collection;
 
 	private SolrMediaItemHandler solrMediaHandler;
 
 	private ArrayBlockingQueue<MediaItem> queue;
 	
-	public MediaTextIndexerBolt(String hostname, String service, String collection) {
-		this.hostname = hostname;
+	public MediaTextIndexerBolt(String service) {
 		this.service = service;
-		this.collection = collection;
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -49,7 +45,7 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 		
 		queue = new ArrayBlockingQueue<MediaItem>(5000);
 		try {
-			solrMediaHandler = SolrMediaItemHandler.getInstance(hostname+"/"+service+"/"+collection);
+			solrMediaHandler = SolrMediaItemHandler.getInstance(service);
 		} catch (Exception e) {
 			e.printStackTrace();
 			solrMediaHandler = null;

@@ -10,7 +10,6 @@ import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
-import eu.socialsensor.focused.crawler.bolts.webpages.RedisBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.TextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.URLExpanderBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.WebPagesUpdaterBolt;
@@ -27,8 +26,18 @@ import backtype.storm.topology.base.BaseRichSpout;
 public class FocusedCrawler {
 
 	/**
-	 * @param args
-	 * @throws UnknownHostException 
+	 *	@author Manos Schinas - manosetro@iti.gr
+	 *
+	 *	Entry class for distributed web page processing. 
+	 *  This class defines a storm-based pipeline (topology) for the processing of WebPages 
+	 *  received from a Redis pub/sub channel. 
+	 *  
+	 * 	The main steps in the topology are: URLExpansion, ArticleExctraction, MediaExtraction,
+	 *  WebPage Text Indexing and Media Text Indexing. 
+	 *  
+	 *  For more information on Storm distributed processing check this tutorial:
+	 *  https://github.com/nathanmarz/storm/wiki/Tutorial
+	 *  
 	 */
 	public static void main(String[] args) throws UnknownHostException {
 		
@@ -61,7 +70,7 @@ public class FocusedCrawler {
 		String textIndexService = textIndexHostname + "/" + textIndexCollection;
 		
 		BaseRichSpout wpSpout;
-		IRichBolt wpRanker, mediaUpdater, miEmitter, urlExpander;
+		IRichBolt wpRanker, mediaUpdater, urlExpander;
 		IRichBolt articleExtraction, mediaExtraction, updater, textIndexer;
 		
 		try {
@@ -73,8 +82,6 @@ public class FocusedCrawler {
 			mediaExtraction = new MediaExtractionBolt();
 			updater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
 			textIndexer = new TextIndexerBolt(textIndexService);
-			
-			miEmitter = new RedisBolt(redisHost, "media");
 
 			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
 		} catch (Exception e) {
@@ -102,8 +109,6 @@ public class FocusedCrawler {
 		builder.setBolt("mediaupdater", mediaUpdater, 1)
 			.shuffleGrouping("articleExtraction", "media")
 			.shuffleGrouping("mediaExtraction", "media");
-		
-		builder.setBolt("miEmitter", miEmitter, 1).shuffleGrouping("mediaupdater");
 		
         // Run topology
         String name = config.getString("topology.focusedCrawlerName", "FocusedCrawler");
