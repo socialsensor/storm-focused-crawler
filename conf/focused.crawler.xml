@@ -13,6 +13,8 @@
         <webpagesCollection>WebPages</webpagesCollection>
         <mediaItemsDB>Prototype</mediaItemsDB>
         <mediaItemsCollection>MediaItems</mediaItemsCollection>
+        <streamUsersDB>Prototype</streamUsersDB>
+        <streamUsersCollection>StreamUsers</streamUsersCollection>
         <clustersDB>Prototype</clustersDB>
         <clustersCollection>MediaClusters</clustersCollection>
     </mongodb>
@@ -25,9 +27,18 @@
     
     <textindex>
         <host>http://xxx.xxx.xxx.xxx:8080/solr</host>
-        <collection>WebPages</collection>
+        <collections>
+        	<webpages>WebPages</webpages>
+        	<media>MediaItems</media>
+        </collections>
     </textindex>
 
+    <conceptdetector>
+        <matlabfile>
+        	/home/manosetro/git/mm-concept-detection-experiments/src/main/resources/twitter_training_params.mat
+       	</matlabfile>
+    </conceptdetector>
+    
     <topology>
         <focusedCrawlerName>FocusedCrawler</focusedCrawlerName>
         <visualIndexerName>VisualIndexer</visualIndexerName>
