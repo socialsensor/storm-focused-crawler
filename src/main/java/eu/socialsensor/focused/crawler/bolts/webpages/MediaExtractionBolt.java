@@ -66,7 +66,6 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		this._collector = collector;  		
 		logger = Logger.getLogger(MediaExtractionBolt.class);
 		
-
 		retrievers.put("instagram", new InstagramRetriever(instagramSecret, instagramToken));
 		retrievers.put("youtube", new YoutubeRetriever(youtubeClientId, youtubeDevKey));
 		retrievers.put("vimeo", new VimeoRetriever());
@@ -88,13 +87,16 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			MediaItem mediaItem = getMediaItem(expandedUrl);	
 			
 			if(mediaItem != null) {
+				webPage.setMedia(1);
+				String[] mediaIds = {mediaItem.getId()};
+				webPage.setMediaIds(mediaIds);
 				mediaItem.setRef(webPage.getReference());
 			}
 			
 			synchronized(_collector) {
-				webPage.setStatus(SUCCESS);
-				_collector.emit(WEBPAGE_STREAM, tuple(webPage));
 				if(mediaItem != null) { 
+					webPage.setStatus(SUCCESS);
+					_collector.emit(WEBPAGE_STREAM, tuple(webPage));
 					_collector.emit(MEDIA_STREAM, tuple(mediaItem));
 				}
 				else {

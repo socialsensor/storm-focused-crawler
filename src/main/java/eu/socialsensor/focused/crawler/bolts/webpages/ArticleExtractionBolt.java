@@ -5,6 +5,7 @@ import static backtype.storm.utils.Utils.tuple;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -107,14 +108,14 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		_cm = new PoolingHttpClientConnectionManager();
 		_cm.setMaxTotal(200);
 		_cm.setDefaultMaxPerRoute(20);
-
+		
 		_httpclient = HttpClients.custom()
 		        .setConnectionManager(_cm)
 		        .build();
 		
 		this._requestConfig = RequestConfig.custom()
-		        .setSocketTimeout(10000)
-		        .setConnectTimeout(10000)
+		        .setSocketTimeout(30000)
+		        .setConnectTimeout(30000)
 		        .build();
 
 		_articleExtractor = CommonExtractors.ARTICLE_EXTRACTOR;
@@ -202,7 +203,12 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				HttpGet httpget = null;
 				try {
 					
-					httpget = new HttpGet(expandedUrl);
+					URI uri = new URI(expandedUrl
+							.replaceAll(" ", "%20")
+							.replaceAll("\\|", "%7C")
+							);
+					
+					httpget = new HttpGet(uri);
 					httpget.setConfig(_requestConfig);
 					HttpResponse response = _httpclient.execute(httpget);
 					
@@ -210,10 +216,11 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					ContentType contentType = ContentType.get(entity);
 	
 					if(!contentType.getMimeType().equals(ContentType.TEXT_HTML.getMimeType())) {
-						System.out.println("Not supported mime type");
-						System.out.println(contentType.getMimeType()+ " - "+ContentType.TEXT_HTML.getMimeType());
+						logger.error("URL: " + webPage.getExpandedUrl() + 
+								"   Not supported mime type: " + contentType.getMimeType());
 						
-						//_tupleQueue.add(tuple(url, expandedUrl, domain, "exception", "Not supported mime type"));
+						webPage.setStatus(FAILED);
+						_tupleQueue.add(webPage);
 						
 						continue;
 					}
@@ -237,7 +244,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					}
 					
 				} catch (Exception e) {
+					//e.printStackTrace();
 					logger.error(e);
+					logger.error("for " + webPage.getExpandedUrl());
 					webPage.setStatus(FAILED);
 					_tupleQueue.add(webPage);
 				}
@@ -285,9 +294,16 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  		mediaItems.addAll(extractAricleImages(imgDoc, webPage, base, content));		
 	  		webPage.setMedia(mediaItems.size());
 	  		
+	  		List<String> mediaIds = new ArrayList<String>();
+	  		for(MediaItem mediaItem : mediaItems) {
+	  			mediaIds.add(mediaItem.getId());
+	  		}
+	  		webPage.setMediaIds(mediaIds.toArray(new String[mediaIds.size()]));
+	  		
 			return true;
 			
 	  	} catch(Exception ex) {
+	  		//ex.printStackTrace();
 	  		logger.error(ex);
 	  		return false;
 	  	}
@@ -388,6 +404,8 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			String alt = image.getAlt();
 			if(alt == null) {
 				alt = webPage.getTitle();
+				if(alt==null)
+					continue;
 			}
 			
 			MediaItem mediaItem = new MediaItem(url);
@@ -521,7 +539,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					MediaItem mediaItem = new MediaItem(url);
 					
 					int imageHash = (url.hashCode() & 0x7FFFFFFF);
-					mediaItem.setId("Web::"+pageHash+"_"+imageHash);
+					mediaItem.setId("Web#"+pageHash+"_"+imageHash);
 					mediaItem.setStreamId("Web");
 					mediaItem.setType("video");
 					mediaItem.setThumbnail(url.toString());
