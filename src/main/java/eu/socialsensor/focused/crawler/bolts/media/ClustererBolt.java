@@ -28,8 +28,6 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Tuple;
 
-
-
 /**
  *	@author Manos Schinas - manosetro@iti.gr
  */

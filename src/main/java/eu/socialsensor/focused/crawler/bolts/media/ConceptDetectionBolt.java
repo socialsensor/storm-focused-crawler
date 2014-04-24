@@ -32,7 +32,15 @@ import backtype.storm.tuple.Tuple;
 public class ConceptDetectionBolt extends BaseRichBolt {
 
 	/**
-	 * 
+	 *	@author Manos Schinas - manosetro@iti.gr
+	 *
+	 *	Storm Bolt using to detect concepts in media items. The bolt collects Visual Features 
+	 *	of Media Items, and periodically runs a Concept Detection method.   
+	 * 	
+	 * 	For more information in Concept detection algorithm used from ConceptDetectionBolt
+	 *  check the following project in github: 
+	 *  https://github.com/socialsensor/mm-concept-detection-experiments
+	 *  
 	 */
 	private static final long serialVersionUID = 8098257892768970548L;
 	private static Logger logger;
@@ -92,35 +100,38 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declare(new Fields("MediaItem"));
 	}
-
+	
+	
 	public class DetectionTask implements Runnable {
 
 		private ConceptType[] conceptValues = ConceptType.values();
-		
 		private BlockingQueue<Pair<ImageVector, MediaItem>> queue;
-
+		
+		private int defaultPeriod = 10 * 60; // 10 minutes
 		
 		public DetectionTask(BlockingQueue<Pair<ImageVector, MediaItem>> queue) {
 			this.queue = queue;
 		}
 		
+		public DetectionTask(BlockingQueue<Pair<ImageVector, MediaItem>> queue, int period) {
+			this.queue = queue;
+			defaultPeriod = period;
+		}
+		
 		public void run() {
 			while(true) {
 				try {
-					Thread.sleep(1 * 60 * 1000);
+					Thread.sleep(defaultPeriod * 1000);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 					break;
 				}
 				
-				//if() {
-				//}
-				
 				List<Pair<ImageVector, MediaItem>> mediaPairs = new ArrayList<Pair<ImageVector, MediaItem>>();
-				queue.drainTo(mediaPairs, 1000);
+				queue.drainTo(mediaPairs, 1500);
 				
 				if(mediaPairs.isEmpty()) {
-					logger.info("Queue in empty! ");
+					logger.info("Queue is empty! ");
 					continue;
 				}
 				else {
@@ -143,9 +154,9 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 						k++;
 					}
 					
-					logger.info("Ready to run concept detection....");
+					logger.info("Run concept detection....");
 					double[][] concepts = detector.detect(descriptors);
-					logger.info("Concepts detected");
+					logger.info("Done!");
 					
 					for(int i=0; i<mediaIds.length; i++) {
 						try {
