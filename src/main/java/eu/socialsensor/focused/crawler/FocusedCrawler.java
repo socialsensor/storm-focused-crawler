@@ -56,17 +56,19 @@ public class FocusedCrawler {
 		}
 		
 		String redisHost = config.getString("redis.hostname", "xxx.xxx.xxx.xxx");
+		String webPagesChannel = config.getString("redis.webPagesChannel", "webpages");
+		
 		
 		String mongodbHostname = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
 		String mediaItemsDB = config.getString("mongodb.mediaItemsDB", "Prototype");
-		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems_WP");
+		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems");
 		String streamUsersDB = config.getString("mongodb.streamUsersDB", "Prototype");
 		String streamUsersCollection = config.getString("mongodb.streamUsersCollection", "StreamUsers");
 		String webPagesDB = config.getString("mongodb.webPagesDB", "Prototype");
 		String webPagesCollection = config.getString("mongodb.webPagesCollection", "WebPages");
 		
 		String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
-		String textIndexCollection = config.getString("textindex.collection", "WebPages");
+		String textIndexCollection = config.getString("textindex.collections/webpages", "WebPages");
 		String textIndexService = textIndexHostname + "/" + textIndexCollection;
 		
 		BaseRichSpout wpSpout;
@@ -74,11 +76,11 @@ public class FocusedCrawler {
 		IRichBolt articleExtraction, mediaExtraction, updater, textIndexer;
 		
 		try {
-			wpSpout = new RedisSpout(redisHost, "webpages", "url");
+			wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
 			wpRanker = new RankerBolt("webpages");
 			urlExpander = new URLExpanderBolt("webpages");
 			
-			articleExtraction = new ArticleExtractionBolt(48);
+			articleExtraction = new ArticleExtractionBolt(24);
 			mediaExtraction = new MediaExtractionBolt();
 			updater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
 			textIndexer = new TextIndexerBolt(textIndexService);

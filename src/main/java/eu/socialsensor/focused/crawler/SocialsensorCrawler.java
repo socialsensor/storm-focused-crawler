@@ -15,7 +15,6 @@ import eu.socialsensor.focused.crawler.bolts.media.VisualIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
-import eu.socialsensor.focused.crawler.bolts.webpages.RedisBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.TextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.URLExpanderBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.WebPagesUpdaterBolt;
@@ -99,7 +98,7 @@ public class SocialsensorCrawler {
 		BaseRichSpout wpSpout, miSpout;
 		IRichBolt wpRanker, miRanker;
 		IRichBolt urlExpander, articleExtraction, mediaExtraction;
-		IRichBolt mediaUpdater, miEmitter, updater, textIndexer;
+		IRichBolt mediaUpdater, updater, textIndexer;
 		IRichBolt visualIndexer, clusterer, mediaTextIndexer, conceptDetector;
 		
 		try {
@@ -115,8 +114,6 @@ public class SocialsensorCrawler {
 			mediaExtraction = new MediaExtractionBolt();
 			updater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
 			textIndexer = new TextIndexerBolt(textIndexService);
-			
-			miEmitter = new RedisBolt(redisHost, "media-temp");
 					
 			visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
 			clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection,
@@ -147,8 +144,6 @@ public class SocialsensorCrawler {
 			.shuffleGrouping("mediaExtraction", "webpage");
 		builder.setBolt("textIndexer", textIndexer, 1)
 			.shuffleGrouping("articleExtraction", "webpage");
-		
-		builder.setBolt("miEmitter", miEmitter, 1).shuffleGrouping("mediaupdater");
 
         builder.setBolt("indexer", visualIndexer, 16)
 			.shuffleGrouping("articleExtraction", "media")
