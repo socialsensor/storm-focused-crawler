@@ -43,7 +43,7 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 	 *  
 	 */
 	private static final long serialVersionUID = 8098257892768970548L;
-	private static Logger logger;
+	private static Logger _logger;
 	
 	private String matlabFile;
 	private BlockingQueue<Pair<ImageVector, MediaItem>> queue;
@@ -51,7 +51,7 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 	private DetectionTask task;
 	private OutputCollector _collector;
 	
-	private ConceptDetector detector = null;
+	private ConceptDetector _detector = null;
 	
 	
 	public ConceptDetectionBolt(String matlabFile) throws Exception {
@@ -62,21 +62,21 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
 		
-		logger = Logger.getLogger(ConceptDetectionBolt.class);
+		_logger = Logger.getLogger(ConceptDetectionBolt.class);
 		
 		_collector = collector;
 		
 		queue = new LinkedBlockingQueue<Pair<ImageVector, MediaItem>>();
 		try {
 			
-			detector = new ConceptDetector(matlabFile);
+			_detector = new ConceptDetector(matlabFile);
 			
 			task = new DetectionTask(queue);
 			thread = new Thread(task);
 			thread.start();
 		}
 		catch(Exception e) {
-			logger.fatal(e);
+			_logger.fatal(e);
 		}
 	}
 
@@ -93,7 +93,7 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 			}
 		}
 		catch(Exception e) {
-			logger.error(e);
+			_logger.error(e);
 		}
 	}
 
@@ -107,7 +107,7 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 		private ConceptType[] conceptValues = ConceptType.values();
 		private BlockingQueue<Pair<ImageVector, MediaItem>> queue;
 		
-		private int defaultPeriod = 10 * 60; // 10 minutes
+		private long defaultPeriod = 60; // Run every one minute
 		
 		public DetectionTask(BlockingQueue<Pair<ImageVector, MediaItem>> queue) {
 			this.queue = queue;
@@ -127,16 +127,20 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 					break;
 				}
 				
+				// Concept Detector needs 50 media items at least
+				if(queue.size() < 50) 
+					continue;
+				
 				List<Pair<ImageVector, MediaItem>> mediaPairs = new ArrayList<Pair<ImageVector, MediaItem>>();
 				queue.drainTo(mediaPairs, 1500);
 				
 				if(mediaPairs.isEmpty()) {
-					logger.info("Queue is empty! ");
+					_logger.info("Queue is empty! ");
 					continue;
 				}
 				else {
-					logger.info("Start concept detection for " + mediaPairs.size() + " media items");
-					logger.info(queue.size() + " tuples remain to queue.");
+					_logger.info("Start concept detection for " + mediaPairs.size() + " media items");
+					_logger.info(queue.size() + " tuples remain to queue.");
 				}
 				
 				try {
@@ -154,9 +158,9 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 						k++;
 					}
 					
-					logger.info("Run concept detection....");
-					double[][] concepts = detector.detect(descriptors);
-					logger.info("Done!");
+					_logger.info("Run concept detection...");
+					double[][] concepts = _detector.detect(descriptors);
+					_logger.info("Done!");
 					
 					for(int i=0; i<mediaIds.length; i++) {
 						try {
@@ -178,14 +182,14 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 						}
 						catch(Exception e) {
 							e.printStackTrace();
-							logger.error(e);
+							_logger.error(e);
 							continue;
 						}
 					}
 					mediaItemsMap.clear();
 				} catch (Exception e) {
 					e.printStackTrace();
-					logger.error(e);
+					_logger.error(e);
 				}	
 			}	
 		}

@@ -84,7 +84,10 @@ public class VisualIndexerBolt extends BaseRichBolt {
 		ImageVector imgVec = null;
 		try {
 			String id = mediaItem.getId();
-			String url = mediaItem.getUrl();
+			String type = mediaItem.getType();
+			
+			String url = type.equals("image") ? mediaItem.getUrl() : mediaItem.getThumbnail();
+			
 			
 			byte[] imageContent = IOUtils.toByteArray(new URL(url));
 			BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageContent));

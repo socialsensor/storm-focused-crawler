@@ -52,8 +52,8 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 			logger.error(e);
 		}
 		
-		Thread t = new Thread(new TextIndexer());
-		t.start();
+		Thread thread = new Thread(new TextIndexer());
+		thread.start();
 	}
 
 	public void execute(Tuple tuple) {
@@ -78,10 +78,14 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 		public void run() {
 			while(true) {
 				try {
-					Thread.sleep(60 * 1000);
+					Thread.sleep(10 * 1000);
 
 					List<MediaItem> mItems = new ArrayList<MediaItem>();
 					queue.drainTo(mItems);
+					
+					if(mItems.isEmpty())
+						continue;
+					
 					boolean inserted = solrMediaHandler.insertMediaItems(mItems);
 					
 					if(inserted) {

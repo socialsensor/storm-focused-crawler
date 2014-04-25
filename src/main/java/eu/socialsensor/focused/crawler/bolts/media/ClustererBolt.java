@@ -9,14 +9,10 @@ import java.util.UUID;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.DB;
-import com.mongodb.DBCollection;
-import com.mongodb.DBObject;
-import com.mongodb.MongoClient;
-
 import eu.socialsensor.framework.client.dao.MediaClusterDAO;
+import eu.socialsensor.framework.client.dao.MediaItemDAO;
 import eu.socialsensor.framework.client.dao.impl.MediaClusterDAOImpl;
+import eu.socialsensor.framework.client.dao.impl.MediaItemDAOImpl;
 import eu.socialsensor.framework.client.search.visual.JsonResultSet;
 import eu.socialsensor.framework.client.search.visual.JsonResultSet.JsonResult;
 import eu.socialsensor.framework.client.search.visual.VisualIndexHandler;
@@ -30,6 +26,9 @@ import backtype.storm.tuple.Tuple;
 
 /**
  *	@author Manos Schinas - manosetro@iti.gr
+ *
+ *
+ *
  */
 public class ClustererBolt extends BaseRichBolt {
 
@@ -45,9 +44,8 @@ public class ClustererBolt extends BaseRichBolt {
 	private String clustersDbName;
 	private String clustersCollectionName;
 	
-	private DBCollection _mediaItemsCollection;
-	
-	private MediaClusterDAO mediaClusterDAO;
+	private MediaItemDAO _mediaItemDAO;
+	private MediaClusterDAO _mediaClusterDAO;
 
 	private Queue<Pair<?, ?>> _mQ = new LinkedList<Pair<?, ?>>();
 
@@ -70,6 +68,14 @@ public class ClustererBolt extends BaseRichBolt {
 		this.indexCollection = indexCollection;
 	}
 	
+	public ClustererBolt(String mongoHost, String mediaItemsDbName, String mediaItemsCollectionName, String clustersDbName, 
+			String clustersCollectionName, String indexHostname, String indexCollection, double threshold ) {
+		
+		this(mongoHost, mediaItemsDbName, mediaItemsCollectionName, clustersDbName, clustersCollectionName, indexHostname, indexCollection);
+		
+		this.threshold = threshold;
+	}
+	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
     }
 
@@ -79,11 +85,9 @@ public class ClustererBolt extends BaseRichBolt {
 		logger = Logger.getLogger(ClustererBolt.class);
 		
 		try {
-			MongoClient mongo = new MongoClient(mongoHost);
-			DB _database = mongo.getDB(mediaItemsDbName);
-			_mediaItemsCollection = _database.getCollection(mediaItemsCollectionName);
 			
-			mediaClusterDAO = new MediaClusterDAOImpl(mongoHost, clustersDbName, clustersCollectionName);
+			_mediaItemDAO = new MediaItemDAOImpl(mongoHost, mediaItemsDbName, mediaItemsCollectionName);
+			_mediaClusterDAO = new MediaClusterDAOImpl(mongoHost, clustersDbName, clustersCollectionName);
 			
 			_visualIndex = new VisualIndexHandler(indexHostname, indexCollection);
 			
@@ -146,22 +150,19 @@ public class ClustererBolt extends BaseRichBolt {
 					
 					if(nearestId != null) {
 					
-						DBObject obj = _mediaItemsCollection.findOne(new BasicDBObject("id", nearestId));
-						if(obj != null && obj.containsField("clusterId")) {
+						MediaItem nearestMediaItem = _mediaItemDAO.getMediaItem(nearestId.toString());
+						if(nearestMediaItem != null && nearestMediaItem.getClusterId() != null) {
 							
 							// Add media item to the same cluster as the nearest neighbor
-							String clusterId = (String) obj.get("clusterId");
+							String clusterId = nearestMediaItem.getClusterId();
 							
 							logger.info(id + " -> " + nearestId + " (" + nearestId + ")");
 							
-							BasicDBObject q = new BasicDBObject("id", id);
-							BasicDBObject o = new BasicDBObject("$set", new BasicDBObject("clusterId", clusterId));
-							_mediaItemsCollection.update(q, o, true, false);
-							
-							mediaClusterDAO.addMediaItemInCluster(clusterId, id);
+							_mediaItemDAO.updateMediaItem(id, "clusterId", clusterId);
+							_mediaClusterDAO.addMediaItemInCluster(clusterId, id);
 						}
 						else {
-							if(obj == null) {
+							if(nearestMediaItem == null) {
 								logger.error("Error: " + nearestId + " not found!");
 							}
 							else {
@@ -173,19 +174,14 @@ public class ClustererBolt extends BaseRichBolt {
 						// Create new Cluster
 						UUID clusterId = UUID.randomUUID();
 						
-						BasicDBObject q = new BasicDBObject("id", id);
-						BasicDBObject o = new BasicDBObject("$set", new BasicDBObject("clusterId", clusterId.toString()));
-						_mediaItemsCollection.update(q, o, true, false);
+						_mediaItemDAO.updateMediaItem(id, "clusterId", clusterId);
 						
 						MediaCluster cluster = new MediaCluster(clusterId.toString());
 						cluster.addMember(id);
-			
-						mediaClusterDAO.addMediaCluster(cluster);
+						_mediaClusterDAO.addMediaCluster(cluster);
 					}
 				}
 			}
 		}
-		
 	}
-	
 }
