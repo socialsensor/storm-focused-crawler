@@ -67,7 +67,7 @@ public class FocusedCrawler {
 		String webPagesDB = config.getString("mongodb.webPagesDB", "Prototype");
 		String webPagesCollection = config.getString("mongodb.webPagesCollection", "WebPages");
 		
-		String textIndexHostname = config.getString("textindex.host", "xxx.xxx.xxx.xxx:8080/solr");
+		String textIndexHostname = config.getString("textindex.hostname", "xxx.xxx.xxx.xxx:8080/solr");
 		String textIndexCollection = config.getString("textindex.collections/webpages", "WebPages");
 		String textIndexService = textIndexHostname + "/" + textIndexCollection;
 		
@@ -77,8 +77,8 @@ public class FocusedCrawler {
 		
 		try {
 			wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
-			wpRanker = new RankerBolt("webpages");
-			urlExpander = new URLExpanderBolt("webpages");
+			wpRanker = new RankerBolt(webPagesChannel);
+			urlExpander = new URLExpanderBolt(webPagesChannel);
 			
 			articleExtraction = new ArticleExtractionBolt(24);
 			mediaExtraction = new MediaExtractionBolt();

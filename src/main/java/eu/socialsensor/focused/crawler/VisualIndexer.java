@@ -68,9 +68,9 @@ public class VisualIndexer {
 		
 		String conceptDetectorMatlabfile = config.getString("conceptdetector.matlabfile");
 		
-		String textIndexHostname = config.getString("textindex.hostname", "http://xxx.xxx.xxx.xxx:8080/solr");
-		String textIndexCollection = config.getString("textindex.collections.media", "MediaItems");
-		String mediaTextIndexService = textIndexHostname + "/" + textIndexCollection;
+		String mediaTextIndexHostname = config.getString("textindex.hostname", "http://xxx.xxx.xxx.xxx:8080/solr");
+		String mediaTextIndexCollection = config.getString("textindex.collections.media", "MediaItems");
+		String mediaTextIndexService = mediaTextIndexHostname + "/" + mediaTextIndexCollection;
 		
 		String visualIndexHostname = config.getString("visualindex.hostname");
 		String visualIndexCollection = config.getString("visualindex.collection");

@@ -24,26 +24,27 @@ import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.InvalidTopologyException;
+import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.topology.base.BaseRichSpout;
 
+/**
+ *	@author Manos Schinas - manosetro@iti.gr
+ *
+ *	Entry class for SocialSensor focused crawling.  
+ *  This class defines a storm-based pipeline (topology) for the processing of MediaItems and WebPages
+ *  collected by StreamManager.
+ *  
+ *  For more information on Storm distributed processing check this tutorial:
+ *  https://github.com/nathanmarz/storm/wiki/Tutorial
+ *  
+ */
 public class SocialsensorCrawler {
 
-	/**
-	 *	@author Manos Schinas - manosetro@iti.gr
-	 *
-	 *	Entry class for SocialSensor focused crawling.  
-	 *  This class defines a storm-based pipeline (topology) for the processing of MediaItems and WebPages
-	 *  collected by StreamManager.
-	 *  
-	 *  For more information on Storm distributed processing check this tutorial:
-	 *  https://github.com/nathanmarz/storm/wiki/Tutorial
-	 *  
-	 */
+	private static Logger logger = Logger.getLogger(SocialsensorCrawler.class);
+	
 	public static void main(String[] args) throws UnknownHostException {
-		
-		Logger logger = Logger.getLogger(SocialsensorCrawler.class);
 		
 		XMLConfiguration config;
 		try {
@@ -57,7 +58,54 @@ public class SocialsensorCrawler {
 			return;
 		}
 		
+		StormTopology topology;
+		try {
+			topology = createTopology(config);
+		} catch (Exception e) {
+			logger.error("Topology Creation failed: ", e);
+			return;
+		}
+		
+        // Run topology
+        String name = "SocialsensorCrawler";
+        boolean local = config.getBoolean("topology.local", true);
+        
+        Config conf = new Config();
+        conf.setDebug(false);
+        
+        if(!local) {
+        	logger.info("Submit topology to Storm cluster");
+			try {
+				int workers = config.getInt("topology.workers", 2);
+				conf.setNumWorkers(workers);
+				
+				StormSubmitter.submitTopology(name, conf, topology);
+			}
+			catch(NumberFormatException e) {
+				logger.error(e);
+			} catch (AlreadyAliveException e) {
+				logger.error(e);
+			} catch (InvalidTopologyException e) {
+				logger.error(e);
+			}
+			
+		} else {
+			logger.info("Run topology in local mode");
+			try {
+				LocalCluster cluster = new LocalCluster();
+				cluster.submitTopology(name, conf, topology);
+			}
+			catch(Exception e) {
+				logger.error(e);
+			}
+		}
+	}
+	
+	public static StormTopology createTopology(XMLConfiguration config) throws Exception {
+		
 		String redisHost = config.getString("redis.hostname", "xxx.xxx.xxx.xxx");
+		String webPagesChannel = config.getString("redis.webPagesChannel", "webpages");
+		String mediaItemsChannel = config.getString("redis.mediaItemsChannel", "media");
 		
 		String mongodbHostname = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
 		String mediaItemsDB = config.getString("mongodb.mediaItemsDB", "Prototype");
@@ -69,8 +117,6 @@ public class SocialsensorCrawler {
 		String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
 		String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
 		
-		
-
 		String visualIndexHostname = config.getString("visualindex.hostname");
 		String visualIndexCollection = config.getString("visualindex.collection");
 		
@@ -86,7 +132,7 @@ public class SocialsensorCrawler {
 		
 		String pcaFile = learningFiles + "pca_surf_4x128_32768to1024.txt";
 		
-		String textIndexHostname = config.getString("textindex.host", "http://xxx.xxx.xxx.xxx:8080/solr");
+		String textIndexHostname = config.getString("textindex.hostname", "http://xxx.xxx.xxx.xxx:8080/solr");
 		String textIndexCollection = config.getString("textindex.collections.webpages", "WebPages");
 		String textIndexService = textIndexHostname + "/" + textIndexCollection;
 		
@@ -101,32 +147,26 @@ public class SocialsensorCrawler {
 		IRichBolt mediaUpdater, updater, textIndexer;
 		IRichBolt visualIndexer, clusterer, mediaTextIndexer, conceptDetector;
 		
-		try {
-			wpSpout = new RedisSpout(redisHost, "webpages", "url");
-			miSpout = new RedisSpout(redisHost, "media-temp", "id");
+		wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
+		miSpout = new RedisSpout(redisHost, mediaItemsChannel, "id");
 			
-			wpRanker = new RankerBolt("webpages");
-			miRanker = new MediaRankerBolt("media-temp");
+		wpRanker = new RankerBolt(webPagesChannel);
+		miRanker = new MediaRankerBolt(mediaItemsChannel);
 			
-			urlExpander = new URLExpanderBolt("webpages");
+		// Web Pages Bolts
+		urlExpander = new URLExpanderBolt("webpages");
+		articleExtraction = new ArticleExtractionBolt(48);
+		mediaExtraction = new MediaExtractionBolt();
+		updater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
+		textIndexer = new TextIndexerBolt(textIndexService);
 			
-			articleExtraction = new ArticleExtractionBolt(48);
-			mediaExtraction = new MediaExtractionBolt();
-			updater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
-			textIndexer = new TextIndexerBolt(textIndexService);
-					
-			visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
-			clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection,
+		// Media Items Bolts
+		visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
+		clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection,
 					visualIndexHostname, visualIndexCollection);
-			conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
-			
-			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
-			mediaTextIndexer = new MediaTextIndexerBolt(mediaTextIndexService);
-			
-		} catch (Exception e) {
-			logger.error(e);
-			return;
-		}
+		conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
+		mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
+		mediaTextIndexer = new MediaTextIndexerBolt(mediaTextIndexService);
 		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
@@ -156,38 +196,9 @@ public class SocialsensorCrawler {
         builder.setBolt("mediaupdater", mediaUpdater, 1).shuffleGrouping("conceptDetector");
 		builder.setBolt("mediaTextIndexer", mediaTextIndexer, 1).shuffleGrouping("conceptDetector");
 		
-        // Run topology
-        String name = "SocialsensorCrawler";
-        boolean local = config.getBoolean("topology.local", true);
-        
-        Config conf = new Config();
-        conf.setDebug(false);
-        
-        if(!local) {
-        	logger.info("Submit topology to Storm cluster");
-			try {
-				int workers = config.getInt("topology.workers", 2);
-				conf.setNumWorkers(workers);
-				
-				StormSubmitter.submitTopology(name, conf, builder.createTopology());
-			}
-			catch(NumberFormatException e) {
-				logger.error(e);
-			} catch (AlreadyAliveException e) {
-				logger.error(e);
-			} catch (InvalidTopologyException e) {
-				logger.error(e);
-			}
-			
-		} else {
-			logger.info("Run topology in local mode");
-			try {
-				LocalCluster cluster = new LocalCluster();
-				cluster.submitTopology(name, conf, builder.createTopology());
-			}
-			catch(Exception e) {
-				logger.error(e);
-			}
-		}
+		StormTopology topology = builder.createTopology();
+		return topology;
+		
 	}
+	
 }

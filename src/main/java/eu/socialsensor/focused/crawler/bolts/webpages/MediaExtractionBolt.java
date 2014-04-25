@@ -42,11 +42,12 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	
 	private OutputCollector _collector;
 	
-	private static String instagramToken = "";
-	private static String instagramSecret = "";
+	private static String instagramClientId = "50fca9eded824679934a71cfa8dda880";
+	//private static String instagramToken = "";
+	//private static String instagramSecret = "";
 	
-	private static String youtubeClientId = "";
-	private static String youtubeDevKey = "";
+	private static String youtubeClientId = "manosetro";
+	private static String youtubeDevKey = "AI39si6DMfJRhrIFvJRv0qFubHHQypIwjkD-W7tsjLJArVKn9iR-QoT8t-UijtITl4TuyHzK-cxqDDCkCBoJB-seakq1gbt1iQ";
 	
 	private static Pattern instagramPattern 	= 	Pattern.compile("http://instagram.com/p/([\\w\\-]+)/");
 	private static Pattern youtubePattern 		= 	Pattern.compile("http://www.youtube.com/watch?.*v=([a-zA-Z0-9_]+)(&.+=.+)*");
@@ -66,7 +67,8 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		this._collector = collector;  		
 		logger = Logger.getLogger(MediaExtractionBolt.class);
 		
-		retrievers.put("instagram", new InstagramRetriever(instagramSecret, instagramToken));
+		//retrievers.put("instagram", new InstagramRetriever(instagramSecret, instagramToken));
+		retrievers.put("instagram", new InstagramRetriever(instagramClientId));
 		retrievers.put("youtube", new YoutubeRetriever(youtubeClientId, youtubeDevKey));
 		retrievers.put("vimeo", new VimeoRetriever());
 		retrievers.put("twitpic", new TwitpicRetriever());
