@@ -61,7 +61,6 @@ public class URLExpanderBolt extends BaseRichBolt {
 		WebPage webPage = (WebPage) tuple.getValueByField(inputField);
 		if(webPage != null) {
 			try {
-				
 				String url = webPage.getUrl();
 				String expandedUrl = expand(url);
 				
@@ -82,21 +81,24 @@ public class URLExpanderBolt extends BaseRichBolt {
 						}
 					}
 					catch(Exception e) {
-						// TODO update web pages
+						//webPage.setStatus("failed");
+						//_collector.emit("update", tuple(webPage));
 						logger.error(e);
 					}
 				}
 				else {
-					// TODO update web pages
+					//webPage.setStatus("failed");
+					//_collector.emit("update", tuple(webPage));
 				}
 			} catch (Exception e) {
+				//webPage.setStatus("failed");
+				//_collector.emit("update", tuple(webPage));
 				logger.error(e);
 			}
 		}
 		else {
-			Utils.sleep(500);
+			Utils.sleep(50);
 		}
-		
 	}
 
 //	class ExpanderThread extends Thread {
