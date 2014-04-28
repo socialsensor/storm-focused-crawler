@@ -5,6 +5,7 @@ import static backtype.storm.utils.Utils.tuple;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -490,7 +491,8 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			MediaItem mediaItem = new MediaItem(url);
 			
 			// Create image unique id
-			int imageHash = (url.hashCode() & 0x7FFFFFFF);
+			String urlStr = url.toString().trim();
+			int imageHash = (urlStr.hashCode() & 0x7FFFFFFF);
 			
 			mediaItem.setId("Web#" + imageHash);
 			mediaItem.setStreamId("Web");
