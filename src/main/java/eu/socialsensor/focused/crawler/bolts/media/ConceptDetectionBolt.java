@@ -89,7 +89,7 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 				_collector.emit(tuple(mediaItem));
 			}
 			else {
-				queue.add(Pair.of(imgVec, mediaItem));
+				queue.put(Pair.of(imgVec, mediaItem));
 			}
 		}
 		catch(Exception e) {
@@ -132,7 +132,9 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 					continue;
 				
 				List<Pair<ImageVector, MediaItem>> mediaPairs = new ArrayList<Pair<ImageVector, MediaItem>>();
-				queue.drainTo(mediaPairs, 1500);
+				synchronized(queue) {
+					queue.drainTo(mediaPairs, 1500);
+				}
 				
 				if(mediaPairs.isEmpty()) {
 					_logger.info("Queue is empty! ");

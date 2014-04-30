@@ -2,6 +2,7 @@ package eu.socialsensor.focused.crawler.bolts.media;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.net.URI;
 import java.net.URL;
 import java.util.Map;
 
@@ -88,8 +89,7 @@ public class VisualIndexerBolt extends BaseRichBolt {
 			
 			String url = type.equals("image") ? mediaItem.getUrl() : mediaItem.getThumbnail();
 			
-			
-			byte[] imageContent = IOUtils.toByteArray(new URL(url));
+			byte[] imageContent = IOUtils.toByteArray(new URL(url.replaceAll(" ", "%20")));
 			BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageContent));
 			
 			boolean indexed = false;
