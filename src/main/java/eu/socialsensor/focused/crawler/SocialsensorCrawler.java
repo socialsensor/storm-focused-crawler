@@ -170,12 +170,13 @@ public class SocialsensorCrawler {
 		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
+		
+		// Input in topology
 		builder.setSpout("wpInjector", wpSpout, 1);
 		builder.setSpout("miInjector", miSpout, 1);
 		
+		// Web Pages Bolts
 		builder.setBolt("wpRanker", wpRanker, 4).shuffleGrouping("wpInjector");
-		builder.setBolt("miRanker", miRanker, 4).shuffleGrouping("miInjector");
-		
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpRanker");
 		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "webpage");
 		builder.setBolt("mediaExtraction", mediaExtraction, 4).shuffleGrouping("expander", "media");
@@ -185,14 +186,13 @@ public class SocialsensorCrawler {
 		builder.setBolt("textIndexer", textIndexer, 1)
 			.shuffleGrouping("articleExtraction", "webpage");
 
+		// Media Items Bolts
+		builder.setBolt("miRanker", miRanker, 4).shuffleGrouping("miInjector");
         builder.setBolt("indexer", visualIndexer, 16)
 			.shuffleGrouping("articleExtraction", "media")
 			.shuffleGrouping("mediaExtraction", "media");
-		
         builder.setBolt("conceptDetector", conceptDetector, 1).shuffleGrouping("indexer");
-        
         builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
-		
         builder.setBolt("mediaupdater", mediaUpdater, 1).shuffleGrouping("conceptDetector");
 		builder.setBolt("mediaTextIndexer", mediaTextIndexer, 1).shuffleGrouping("conceptDetector");
 		
