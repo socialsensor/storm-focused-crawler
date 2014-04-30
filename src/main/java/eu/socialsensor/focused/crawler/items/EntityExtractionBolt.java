@@ -44,4 +44,5 @@ public class EntityExtractionBolt extends BaseRichBolt {
 		declarer.declare(new Fields("Item"));
 	}
 
+	
 }
