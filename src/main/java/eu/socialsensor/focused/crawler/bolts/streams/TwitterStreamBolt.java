@@ -107,8 +107,10 @@ public class TwitterStreamBolt extends BaseRichBolt {
 
 	public void execute(Tuple input) {
 		try {
-			List<Feed> feeds = (List<Feed>) input.getValueByField("feeds");
-			subscribe(feeds);
+			Feed feeds = (Feed) input.getValueByField("feeds");
+			_logger.info(feeds.getId());
+			
+			//subscribe(feeds);
 		}
 		catch(Exception e) {
 			_logger.error("Exception on subscribe.", e);
@@ -119,7 +121,7 @@ public class TwitterStreamBolt extends BaseRichBolt {
 		
 	}
 
-	private synchronized void subscribe(List<Feed> feeds) throws StreamException {	
+	public synchronized void subscribe(List<Feed> feeds) throws StreamException {	
 			
 		List<String> keys = new ArrayList<String>();
 		List<String> users = new ArrayList<String>();

@@ -52,7 +52,8 @@ public class RedisSpout extends BaseRichSpout {
 		
 		private LinkedBlockingQueue<String> queue;
 		private JedisPool pool;
-
+		
+		private int totalMessages = 0;
 		private Set<String> ids = new HashSet<String>();
 			
 		public ListenerThread(LinkedBlockingQueue<String> queue, JedisPool pool) {
@@ -61,18 +62,21 @@ public class RedisSpout extends BaseRichSpout {
 		}
 
 		public void run() {
-
+			
 			JedisPubSub listener = new JedisPubSub() {
 
 				@Override
 				public void onMessage(String channel, String message) {
+					totalMessages++;
+					
 					DBObject obj = (DBObject) JSON.parse(message);
 					String id = (String) obj.get(idField);
 					if(!ids.contains(id)) {
 						queue.offer(message);
 						ids.add(id);
-						if(ids.size() % 200 == 0) {
-							logger.info(ids.size() + " messages received. " + queue.size() + " in redis spout queue.");
+						if(ids.size() % 2000 == 0) {
+							logger.info(totalMessages + " messages received in total. " + ids.size() + " unique. " 
+									+ queue.size() + " in redis spout queue.");
 						}
 					}
 				}

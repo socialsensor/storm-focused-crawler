@@ -119,32 +119,33 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	private MediaItem getMediaItem(String url) {
 		SocialMediaRetriever retriever = null;
 		String mediaId = null;
+		String source = null;
 		
 		Matcher matcher;
 		if((matcher = instagramPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			//retriever = new InstagramRetriever(instagramSecret, instagramToken);
 			retriever = retrievers.get("instagram");
+			source = "instagram";
 		}
 		else if((matcher = youtubePattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			//retriever = new YoutubeRetriever(youtubeClientId, youtubeDevKey);
 			retriever = retrievers.get("youtube");
+			source = "youtube";
 		}
 		else if((matcher = vimeoPattern.matcher(url)).matches()){
 			mediaId = matcher.group(1);
-			//retriever = new VimeoRetriever();
 			retriever = retrievers.get("vimeo");
+			source = "vimeo";
 		}
 		else if((matcher = twitpicPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			//retriever = new TwitpicRetriever();
 			retriever = retrievers.get("twitpic");
+			source = "twitpic";
 		}
 		else if((matcher = dailymotionPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
-			//retriever = new DailyMotionRetriever();
 			retriever = retrievers.get("dailymotion");
+			source = "dailymotion";
 		}
 		else {
 			return null;
@@ -155,9 +156,13 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		
 		try {
 			MediaItem mediaItem = retriever.getMediaItem(mediaId);
-			if(mediaItem != null) {
-				mediaItem.setPageUrl(url);
+			if(mediaItem == null) {
+				logger.info(mediaId + " from " + source + " is null");
+				return null;
 			}
+			
+			mediaItem.setPageUrl(url);
+			
 			StreamUser streamUser = mediaItem.getUser();
 			String userid = mediaItem.getUserId();
 			if(streamUser == null || userid == null) {
@@ -172,6 +177,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			return mediaItem;
 		}
 		catch(Exception e) {
+			e.printStackTrace();
 			logger.error(e);
 			return null;
 		}

@@ -2,7 +2,6 @@ package eu.socialsensor.focused.crawler.bolts.media;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.net.URI;
 import java.net.URL;
 import java.util.Map;
 

@@ -28,12 +28,11 @@ public class TopicDetectionBolt extends BaseRichBolt {
 	}
 
 	private Logger _logger;
-	private OutputCollector _collector;
 	private BlockingQueue<Item> _queue;
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
-		this._collector = collector;
+
 		this._logger = Logger.getLogger(EntityExtractionBolt.class);
 		this._queue = new LinkedBlockingQueue<Item>(5000);
 		

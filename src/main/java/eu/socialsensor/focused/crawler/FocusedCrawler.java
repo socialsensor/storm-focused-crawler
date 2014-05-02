@@ -1,10 +1,12 @@
 package eu.socialsensor.focused.crawler;
 
+import java.io.File;
 import java.net.UnknownHostException;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
 
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
@@ -40,6 +42,10 @@ public class FocusedCrawler {
 	 *  
 	 */
 	public static void main(String[] args) throws UnknownHostException {
+		
+		if(new File("log4j.properties").exists()) {
+			PropertyConfigurator.configure("log4j.properties");
+		}
 		
 		Logger logger = Logger.getLogger(FocusedCrawler.class);
 		
@@ -96,11 +102,13 @@ public class FocusedCrawler {
 		builder.setSpout("wpInjector", wpSpout, 1);
 		
 		builder.setBolt("wpRanker", wpRanker, 4).shuffleGrouping("wpInjector");
-		
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpRanker");
+		
+		
 		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "webpage");
 		builder.setBolt("mediaExtraction", mediaExtraction, 4).shuffleGrouping("expander", "media");
 		
+		/*
 		builder.setBolt("updater", updater, 4)
 			.shuffleGrouping("articleExtraction", "webpage")
 			.shuffleGrouping("mediaExtraction", "webpage");
@@ -111,6 +119,7 @@ public class FocusedCrawler {
 		builder.setBolt("mediaupdater", mediaUpdater, 1)
 			.shuffleGrouping("articleExtraction", "media")
 			.shuffleGrouping("mediaExtraction", "media");
+		*/
 		
         // Run topology
         String name = config.getString("topology.focusedCrawlerName", "FocusedCrawler");

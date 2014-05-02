@@ -5,7 +5,6 @@ import static backtype.storm.utils.Utils.tuple;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -245,7 +244,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					}
 					
 				} catch (Exception e) {
-					//e.printStackTrace();
+					e.printStackTrace();
 					logger.error(e);
 					logger.error("for " + webPage.getExpandedUrl());
 					webPage.setStatus(FAILED);

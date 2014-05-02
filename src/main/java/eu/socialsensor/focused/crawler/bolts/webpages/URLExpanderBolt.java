@@ -71,6 +71,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 					
 						webPage.setExpandedUrl(expandedUrl);
 						webPage.setDomain(domain);
+						
 						synchronized(_collector) {
 							if(socialMediaTargets.contains(domain)) {
 								_collector.emit("media", tuple(webPage));
