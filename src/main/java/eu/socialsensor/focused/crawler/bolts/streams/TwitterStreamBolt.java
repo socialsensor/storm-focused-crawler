@@ -22,7 +22,6 @@ import twitter4j.TwitterStreamFactory;
 import twitter4j.User;
 import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
-import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.framework.abstractions.socialmedia.twitter.TwitterItem;
 import eu.socialsensor.framework.common.domain.Feed;
 import eu.socialsensor.framework.common.domain.Item;
@@ -39,6 +38,7 @@ import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
+import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 
@@ -54,30 +54,28 @@ public class TwitterStreamBolt extends BaseRichBolt {
 	private static final String ACCESS_TOKEN = "AccessToken";
 	private static final String ACCESS_TOKEN_SECRET = "AccessTokenSecret";
 	
-	private StreamConfiguration config;
-
+	private StreamConfiguration _config;
 	private Logger _logger;
 
 	private OutputCollector _collector;
 
 	private TwitterStream _twitterStream;
-
 	private Twitter _twitterApi;
 
 	public TwitterStreamBolt(StreamConfiguration config) {
-		this.config = config;
+		this._config = config;
 	}
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
 		
-		_logger = Logger.getLogger(ArticleExtractionBolt.class);
+		_logger = Logger.getLogger(TwitterStreamBolt.class);
 		_collector = collector;
 		
-		String oAuthConsumerKey 		= 	config.getParameter(KEY);
-		String oAuthConsumerSecret 		= 	config.getParameter(SECRET);
-		String oAuthAccessToken 		= 	config.getParameter(ACCESS_TOKEN);
-		String oAuthAccessTokenSecret 	= 	config.getParameter(ACCESS_TOKEN_SECRET);
+		String oAuthConsumerKey 		= 	_config.getParameter(KEY);
+		String oAuthConsumerSecret 		= 	_config.getParameter(SECRET);
+		String oAuthAccessToken 		= 	_config.getParameter(ACCESS_TOKEN);
+		String oAuthAccessTokenSecret 	= 	_config.getParameter(ACCESS_TOKEN_SECRET);
 		
 		if (oAuthConsumerKey == null || oAuthConsumerSecret == null ||
 				oAuthAccessToken == null || oAuthAccessTokenSecret == null) {
@@ -107,10 +105,11 @@ public class TwitterStreamBolt extends BaseRichBolt {
 
 	public void execute(Tuple input) {
 		try {
-			Feed feeds = (Feed) input.getValueByField("feeds");
-			_logger.info(feeds.getId());
+			@SuppressWarnings("unchecked")
+			List<Feed> feeds = (List<Feed>) input.getValueByField("feeds");
+			_logger.info(feeds.size() + " feeds.");
 			
-			//subscribe(feeds);
+			subscribe(feeds);
 		}
 		catch(Exception e) {
 			_logger.error("Exception on subscribe.", e);
@@ -118,7 +117,7 @@ public class TwitterStreamBolt extends BaseRichBolt {
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		
+		declarer.declare(new Fields("Item"));
 	}
 
 	public synchronized void subscribe(List<Feed> feeds) throws StreamException {	
@@ -189,10 +188,8 @@ public class TwitterStreamBolt extends BaseRichBolt {
 		}
 	}
 		
-
 	private StatusListener getListener() { 
 		return new StatusListener() {
-
 			public void onStatus(Status status) {
 				if(status != null) {
 					try {
@@ -225,15 +222,11 @@ public class TwitterStreamBolt extends BaseRichBolt {
 			}
 			
 			public void onTrackLimitationNotice(int numOfLimitedStatuses) {
-				synchronized(this) {
-					_logger.error("Rate limit: " + numOfLimitedStatuses);
-				}
+				_logger.error("Rate limit: " + numOfLimitedStatuses);
 			}
 			
 			public void onException(Exception ex) {
-				synchronized(this) {
-					_logger.error("Internal stream error occured: " + ex.getMessage());
-				}
+				_logger.error("Internal stream error occured: " + ex.getMessage());
 			}
 			
 			public void onScrubGeo(long userid, long arg1) {
@@ -272,26 +265,22 @@ public class TwitterStreamBolt extends BaseRichBolt {
 			return query;
 	}
 	
-private Set<Long> getUserIds(List<String> followsUsernames) {
+	private Set<Long> getUserIds(List<String> followsUsernames) {
 		
 		Set<Long> ids = new HashSet<Long>();
-		
 		List<String> usernames = new ArrayList<String>(followsUsernames.size());
 		for(String username : followsUsernames) {
 			usernames.add(username);
 		}
 		
 		int size = usernames.size();
-		int start = 0;
-		int end = Math.min(start+100, size);
-		
+		int start = 0, end = Math.min(start+100, size);
 		while(start < size) {
 			List<String> sublist = usernames.subList(start, end);
 			String[] _usernames = sublist.toArray(new String[sublist.size()]);
 			try {
-				_logger.info("Request for " + _usernames.length + " users ");
 				ResponseList<User> users = _twitterApi.lookupUsers(_usernames);
-				_logger.info(users.size() + " users ");
+				_logger.info("Request for " + _usernames.length + " users. Got " + users.size());
 				for(User user : users) {
 					long id = user.getId();
 					ids.add(id);
@@ -301,12 +290,9 @@ private Set<Long> getUserIds(List<String> followsUsernames) {
 				_logger.error("Exception in getUserIds: ", e);
 				break;
 			}
-			
 			start = end + 1;
 			end = Math.min(start+100, size);
 		}
-		
 		return ids;
 	}
-
 }
