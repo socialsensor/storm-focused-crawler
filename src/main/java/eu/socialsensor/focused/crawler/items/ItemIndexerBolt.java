@@ -16,7 +16,6 @@ import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 
-
 public class ItemIndexerBolt extends BaseRichBolt {
 
 	/**
@@ -24,16 +23,14 @@ public class ItemIndexerBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -7500656732029697927L;
 	
-	private Logger logger;
-	
-	private String service;
-
-	private SolrItemHandler solrItemHandler;
+	private Logger _logger;
+	private String _service;
+	private SolrItemHandler _solrItemHandler;
 
 	private ArrayBlockingQueue<Item> queue;
 	
 	public ItemIndexerBolt(String service) {
-		this.service = service;
+		this._service = service;
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -42,57 +39,57 @@ public class ItemIndexerBolt extends BaseRichBolt {
 
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
 			OutputCollector collector) {
-		logger = Logger.getLogger(ItemIndexerBolt.class);
+		_logger = Logger.getLogger(ItemIndexerBolt.class);
 		
 		queue = new ArrayBlockingQueue<Item>(5000);
 		try {
-			solrItemHandler = SolrItemHandler.getInstance(service);
+			_solrItemHandler = SolrItemHandler.getInstance(_service);
 		} catch (Exception e) {
 			e.printStackTrace();
-			solrItemHandler = null;
-			logger.error(e);
+			_solrItemHandler = null;
+			_logger.error(e);
 		}
 		
 		Thread t = new Thread(new TextIndexer());
 		t.start();
 	}
 
-	public void execute(Tuple tuple) {
-		
+	public void execute(Tuple tuple) {	
 		try {
 			Item mediaItem = (Item) tuple.getValueByField("Item");
 		
-			if(mediaItem == null || solrItemHandler == null)
+			if(mediaItem == null || _solrItemHandler == null)
 				return;
 			
 			queue.add(mediaItem);
 		}
 		catch(Exception ex) {
 			ex.printStackTrace();
-			logger.error(ex);
-		}
-		
+			_logger.error(ex);
+		}		
 	}
  
 	public class TextIndexer implements Runnable {
-
 		public void run() {
 			while(true) {
 				try {
 					Thread.sleep(60 * 1000);
 
 					List<Item> items = new ArrayList<Item>();
-					queue.drainTo(items);
-					boolean inserted = solrItemHandler.insertItems(items);
+					synchronized(queue) {
+						queue.drainTo(items);
+					}
+					
+					boolean inserted = _solrItemHandler.insertItems(items);
 					
 					if(inserted) {
-						logger.info(items.size() + " items indexed in Solr");
+						_logger.info(items.size() + " items indexed in Solr");
 					}
 					else {
-						logger.error("Indexing in Solr failed for Items");
+						_logger.error("Indexing in Solr failed for Items");
 					}
 				} catch (Exception e) {
-					logger.error(e);
+					_logger.error(e);
 					continue;
 				}
 			}
