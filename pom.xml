@@ -109,6 +109,11 @@
 			<artifactId>socialsensor-stream-manager</artifactId>
 			<version>0.1-SNAPSHOT</version>
 		</dependency>
+		<dependency>
+			<groupId>edu.stanford.nlp</groupId>
+			<artifactId>stanford-corenlp</artifactId>
+			<version>3.3.1</version>
+		</dependency>
   	</dependencies>
 	
 	<repositories>
