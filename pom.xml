@@ -14,7 +14,7 @@
   
   	<name>storm-focused-crawler</name>
     <url>https://github.com/socialsensor/storm-focused-crawler</url>
-    <description> Collects multimedia content shared through social networks. </description>
+    <description> Collects and Index multimedia content shared through social networks.</description>
     
   	<developers>
         <developer>
@@ -180,7 +180,7 @@
                      		<transformers>
                       			<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                            			<manifestEntries>
-                               			<Main-Class>eu.socialsensor.focused.crawler.FocusedCrawler</Main-Class>
+                               			<Main-Class>eu.socialsensor.focused.crawler.SocialsensorCrawler</Main-Class>
                                   		<Build-Number>123</Build-Number>
                               		</manifestEntries>
                           		</transformer>
