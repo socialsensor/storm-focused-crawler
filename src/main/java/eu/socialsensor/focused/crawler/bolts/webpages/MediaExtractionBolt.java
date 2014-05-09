@@ -48,7 +48,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	
 	private static String youtubeClientId = "manosetro";
 	private static String youtubeDevKey = "AI39si6DMfJRhrIFvJRv0qFubHHQypIwjkD-W7tsjLJArVKn9iR-QoT8t-UijtITl4TuyHzK-cxqDDCkCBoJB-seakq1gbt1iQ";
-	
+
 	private static Pattern instagramPattern 	= 	Pattern.compile("http://instagram.com/p/([\\w\\-]+)/");
 	private static Pattern youtubePattern 		= 	Pattern.compile("http://www.youtube.com/watch?.*v=([a-zA-Z0-9_]+)(&.+=.+)*");
 	private static Pattern vimeoPattern 		= 	Pattern.compile("http://vimeo.com/([0-9]+)/*$");
@@ -67,13 +67,11 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		this._collector = collector;  		
 		logger = Logger.getLogger(MediaExtractionBolt.class);
 		
-		//retrievers.put("instagram", new InstagramRetriever(instagramSecret, instagramToken));
 		retrievers.put("instagram", new InstagramRetriever(instagramClientId));
 		retrievers.put("youtube", new YoutubeRetriever(youtubeClientId, youtubeDevKey));
 		retrievers.put("vimeo", new VimeoRetriever());
 		retrievers.put("twitpic", new TwitpicRetriever());
 		retrievers.put("dailymotion", new DailyMotionRetriever());
-		
 	}
 
 	public void execute(Tuple tuple) {
@@ -181,7 +179,6 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			logger.error(e);
 			return null;
 		}
-	
 	}
 
 	@Override

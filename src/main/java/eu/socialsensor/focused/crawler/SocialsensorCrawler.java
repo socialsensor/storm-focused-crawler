@@ -103,6 +103,7 @@ public class SocialsensorCrawler {
 	
 	public static StormTopology createTopology(XMLConfiguration config) throws Exception {
 		
+		// Get Params from config file
 		String redisHost = config.getString("redis.hostname", "xxx.xxx.xxx.xxx");
 		String webPagesChannel = config.getString("redis.webPagesChannel", "webpages");
 		String mediaItemsChannel = config.getString("redis.mediaItemsChannel", "media");
@@ -141,6 +142,7 @@ public class SocialsensorCrawler {
 		
 		String conceptDetectorMatlabfile = config.getString("conceptdetector.matlabfile");
 		
+		// Initialize spouts and bolts
 		BaseRichSpout wpSpout, miSpout;
 		IRichBolt wpRanker, miRanker;
 		IRichBolt urlExpander, articleExtraction, mediaExtraction;
@@ -167,6 +169,7 @@ public class SocialsensorCrawler {
 		conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
 		mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
 		mediaTextIndexer = new MediaTextIndexerBolt(mediaTextIndexService);
+		
 		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();

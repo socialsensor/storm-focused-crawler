@@ -2,6 +2,9 @@ package eu.socialsensor.focused.crawler;
 
 import java.io.File;
 import java.net.UnknownHostException;
+import java.util.Enumeration;
+import java.util.Properties;
+import java.util.Set;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
@@ -21,12 +24,16 @@ import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.InvalidTopologyException;
+import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.topology.base.BaseRichSpout;
 
 public class FocusedCrawler {
 
+	private static Logger logger = Logger.getLogger(FocusedCrawler.class);
+	
+	
 	/**
 	 *	@author Manos Schinas - manosetro@iti.gr
 	 *
@@ -43,12 +50,6 @@ public class FocusedCrawler {
 	 */
 	public static void main(String[] args) throws UnknownHostException {
 		
-		if(new File("log4j.properties").exists()) {
-			PropertyConfigurator.configure("log4j.properties");
-		}
-		
-		Logger logger = Logger.getLogger(FocusedCrawler.class);
-		
 		XMLConfiguration config;
 		try {
 			if(args.length == 1)
@@ -60,10 +61,49 @@ public class FocusedCrawler {
 			logger.error(ex);
 			return;
 		}
+	
+		StormTopology topology = null;
+		try {
+			topology = createTopology(config);
+		}
+		catch(Exception e) {
+			logger.error(e);
+		}
 		
+        // Run topology
+        String name = config.getString("topology.focusedCrawlerName", "FocusedCrawler");
+        boolean local = config.getBoolean("topology.local", true);
+        
+        Config conf = new Config();
+        conf.setDebug(false);
+        
+        if(!local) {
+        	System.out.println("Submit topology to Storm cluster");
+			try {
+				int workers = config.getInt("topology.workers", 2);
+				conf.setNumWorkers(workers);
+				
+				StormSubmitter.submitTopology(name, conf, topology);
+			}
+			catch(NumberFormatException e) {
+				logger.error(e);
+			} catch (AlreadyAliveException e) {
+				logger.error(e);
+			} catch (InvalidTopologyException e) {
+				logger.error(e);
+			}
+			
+		} else {
+			logger.info("Run topology in local mode");
+			LocalCluster cluster = new LocalCluster();
+			cluster.submitTopology(name, conf, topology);
+		}
+	}
+	
+	public static StormTopology createTopology(XMLConfiguration config) {
+	
 		String redisHost = config.getString("redis.hostname", "xxx.xxx.xxx.xxx");
 		String webPagesChannel = config.getString("redis.webPagesChannel", "webpages");
-		
 		
 		String mongodbHostname = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
 		String mediaItemsDB = config.getString("mongodb.mediaItemsDB", "Prototype");
@@ -94,60 +134,34 @@ public class FocusedCrawler {
 			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
 		} catch (Exception e) {
 			logger.error(e);
-			return;
+			return null;
 		}
 		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
 		builder.setSpout("wpInjector", wpSpout, 1);
-		
+				
 		builder.setBolt("wpRanker", wpRanker, 4).shuffleGrouping("wpInjector");
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpRanker");
-		
-		
+				
+				
 		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "webpage");
 		builder.setBolt("mediaExtraction", mediaExtraction, 4).shuffleGrouping("expander", "media");
-		
+				
 		/*
 		builder.setBolt("updater", updater, 4)
 			.shuffleGrouping("articleExtraction", "webpage")
 			.shuffleGrouping("mediaExtraction", "webpage");
-		
+				
 		builder.setBolt("textIndexer", textIndexer, 1)
 			.shuffleGrouping("articleExtraction", "webpage");
-		
+				
 		builder.setBolt("mediaupdater", mediaUpdater, 1)
 			.shuffleGrouping("articleExtraction", "media")
 			.shuffleGrouping("mediaExtraction", "media");
 		*/
 		
-        // Run topology
-        String name = config.getString("topology.focusedCrawlerName", "FocusedCrawler");
-        boolean local = config.getBoolean("topology.local", true);
-        
-        Config conf = new Config();
-        conf.setDebug(false);
-        
-        if(!local) {
-        	System.out.println("Submit topology to Storm cluster");
-			try {
-				int workers = config.getInt("topology.workers", 2);
-				conf.setNumWorkers(workers);
-				
-				StormSubmitter.submitTopology(name, conf, builder.createTopology());
-			}
-			catch(NumberFormatException e) {
-				logger.error(e);
-			} catch (AlreadyAliveException e) {
-				logger.error(e);
-			} catch (InvalidTopologyException e) {
-				logger.error(e);
-			}
-			
-		} else {
-			logger.info("Run topology in local mode");
-			LocalCluster cluster = new LocalCluster();
-			cluster.submitTopology(name, conf, builder.createTopology());
-		}
+		StormTopology topology = builder.createTopology();
+		return topology;
 	}
 }
