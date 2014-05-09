@@ -22,6 +22,8 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.HttpContext;
 import org.apache.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -108,7 +110,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		_cm = new PoolingHttpClientConnectionManager();
 		_cm.setMaxTotal(200);
 		_cm.setDefaultMaxPerRoute(20);
-		
+
 		_httpclient = HttpClients.custom()
 		        .setConnectionManager(_cm)
 		        .build();
@@ -128,10 +130,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	    
 	    Thread[] fetchers = new Thread[numOfFetchers];
 	    for(int i=0;i<numOfFetchers; i++) {
-	    	fetchers[i] = new Thread(new Fetcher(_queue));
+	    	fetchers[i] = new Thread(new HttpFetcher(_queue));
 	    	fetchers[i].start();
 	    }
-	    
 	    
 	}
 
@@ -176,11 +177,11 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		}
 	}
 	
-	private class Fetcher implements Runnable {
+	private class HttpFetcher implements Runnable {
 
 		private BlockingQueue<WebPage> queue;
 		
-		public Fetcher(BlockingQueue<WebPage> _queue) {
+		public HttpFetcher(BlockingQueue<WebPage> _queue) {
 			this.queue = _queue;
 		}
 		
@@ -192,6 +193,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					webPage = queue.take();
 				} catch (InterruptedException e) {
 					e.printStackTrace();
+					logger.error(e);
 					continue;
 				}
 				
@@ -202,7 +204,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				String expandedUrl = webPage.getExpandedUrl();
 				HttpGet httpget = null;
 				try {
-					
 					URI uri = new URI(expandedUrl
 							.replaceAll(" ", "%20")
 							.replaceAll("\\|", "%7C")
@@ -244,7 +245,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					}
 					
 				} catch (Exception e) {
-					e.printStackTrace();
 					logger.error(e);
 					logger.error("for " + webPage.getExpandedUrl());
 					webPage.setStatus(FAILED);
@@ -265,6 +265,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  		
 	  		InputSource articelIS1 = new InputSource(new ByteArrayInputStream(content));
 	  		InputSource articelIS2 = new InputSource(new ByteArrayInputStream(content));
+	  		
 		  	TextDocument document = null, imgDoc = null;
 
 	  		document = new BoilerpipeSAXInput(articelIS1).getTextDocument();
@@ -300,10 +301,14 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  		}
 	  		webPage.setMediaIds(mediaIds.toArray(new String[mediaIds.size()]));
 	  		
+	  		if(mediaItems.size() > 0) {
+	  			MediaItem mediaItem = mediaItems.get(0);
+	  			webPage.setMediaThumbnail(mediaItem.getUrl());
+	  		}
+	  		
 			return true;
 			
 	  	} catch(Exception ex) {
-	  		//ex.printStackTrace();
 	  		logger.error(ex);
 	  		return false;
 	  	}

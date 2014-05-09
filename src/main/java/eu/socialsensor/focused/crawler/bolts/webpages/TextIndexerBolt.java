@@ -41,7 +41,7 @@ public class TextIndexerBolt extends BaseRichBolt {
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, OutputCollector collector) {
 		logger = Logger.getLogger(TextIndexerBolt.class);
 		
-		queue = new ArrayBlockingQueue<WebPage>(5000);
+		queue = new ArrayBlockingQueue<WebPage>(10000);
 		solrWebPageHandler = SolrWebPageHandler.getInstance(_indexService);
 		
 		Thread t = new Thread(new TextIndexer());
@@ -51,7 +51,6 @@ public class TextIndexerBolt extends BaseRichBolt {
 	public void execute(Tuple tuple) {
 		try {
 			WebPage webPage = (WebPage) tuple.getValueByField("WebPage");
-			
 			
 			if(webPage != null && solrWebPageHandler != null) {
 				queue.add(webPage);

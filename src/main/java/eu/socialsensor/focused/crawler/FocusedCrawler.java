@@ -1,15 +1,10 @@
 package eu.socialsensor.focused.crawler;
 
-import java.io.File;
 import java.net.UnknownHostException;
-import java.util.Enumeration;
-import java.util.Properties;
-import java.util.Set;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
-import org.apache.log4j.PropertyConfigurator;
 
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
@@ -80,7 +75,7 @@ public class FocusedCrawler {
         if(!local) {
         	System.out.println("Submit topology to Storm cluster");
 			try {
-				int workers = config.getInt("topology.workers", 2);
+				int workers = config.getInt("topology.workers", 4);
 				conf.setNumWorkers(workers);
 				
 				StormSubmitter.submitTopology(name, conf, topology);
@@ -119,7 +114,7 @@ public class FocusedCrawler {
 		
 		BaseRichSpout wpSpout;
 		IRichBolt wpRanker, mediaUpdater, urlExpander;
-		IRichBolt articleExtraction, mediaExtraction, updater, textIndexer;
+		IRichBolt articleExtraction, mediaExtraction, webPageUpdater, textIndexer;
 		
 		try {
 			wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
@@ -128,7 +123,7 @@ public class FocusedCrawler {
 			
 			articleExtraction = new ArticleExtractionBolt(24);
 			mediaExtraction = new MediaExtractionBolt();
-			updater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
+			webPageUpdater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
 			textIndexer = new TextIndexerBolt(textIndexService);
 
 			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
@@ -148,8 +143,7 @@ public class FocusedCrawler {
 		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "webpage");
 		builder.setBolt("mediaExtraction", mediaExtraction, 4).shuffleGrouping("expander", "media");
 				
-		/*
-		builder.setBolt("updater", updater, 4)
+		builder.setBolt("webPageUpdater", webPageUpdater, 4)
 			.shuffleGrouping("articleExtraction", "webpage")
 			.shuffleGrouping("mediaExtraction", "webpage");
 				
@@ -159,7 +153,6 @@ public class FocusedCrawler {
 		builder.setBolt("mediaupdater", mediaUpdater, 1)
 			.shuffleGrouping("articleExtraction", "media")
 			.shuffleGrouping("mediaExtraction", "media");
-		*/
 		
 		StormTopology topology = builder.createTopology();
 		return topology;

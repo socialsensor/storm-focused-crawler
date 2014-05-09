@@ -50,7 +50,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	private static String youtubeDevKey = "AI39si6DMfJRhrIFvJRv0qFubHHQypIwjkD-W7tsjLJArVKn9iR-QoT8t-UijtITl4TuyHzK-cxqDDCkCBoJB-seakq1gbt1iQ";
 
 	private static Pattern instagramPattern 	= 	Pattern.compile("http://instagram.com/p/([\\w\\-]+)/");
-	private static Pattern youtubePattern 		= 	Pattern.compile("http://www.youtube.com/watch?.*v=([a-zA-Z0-9_]+)(&.+=.+)*");
+	private static Pattern youtubePattern 		= 	Pattern.compile("http.*://www.youtube.com/watch?.*v=([a-zA-Z0-9_\\-]+)(&.+=.+)*");
 	private static Pattern vimeoPattern 		= 	Pattern.compile("http://vimeo.com/([0-9]+)/*$");
 	private static Pattern twitpicPattern 		= 	Pattern.compile("http://twitpic.com/([A-Za-z0-9]+)/*.*$");
 	private static Pattern dailymotionPattern 	= 	Pattern.compile("http://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
@@ -100,11 +100,13 @@ public class MediaExtractionBolt extends BaseRichBolt {
 					_collector.emit(MEDIA_STREAM, tuple(mediaItem));
 				}
 				else {
+					logger.error(webPage.getExpandedUrl() + " failed due to null media item");
 					webPage.setStatus(FAILED);
 					_collector.emit(WEBPAGE_STREAM, tuple(webPage));
 				}
 			}
 		} catch (Exception e) {
+			logger.error(webPage.getExpandedUrl() + " failed due to exception");
 			logger.error(e);
 			synchronized(_collector) {
 				webPage.setStatus(FAILED);
@@ -118,7 +120,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		SocialMediaRetriever retriever = null;
 		String mediaId = null;
 		String source = null;
-		
+		System.out.println(url);
 		Matcher matcher;
 		if((matcher = instagramPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
@@ -149,8 +151,11 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			return null;
 		}
 		
-		if(mediaId == null || retriever == null)
+		System.out.println("matches " + source);
+		
+		if(mediaId == null || retriever == null) {
 			return null;
+		}
 		
 		try {
 			MediaItem mediaItem = retriever.getMediaItem(mediaId);

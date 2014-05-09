@@ -68,15 +68,15 @@ public class WebPagesUpdaterBolt extends BaseRichBolt {
 				o.setField("text", webPage.getText());
 				o.setField("domain", webPage.getDomain());
 				o.setField("expandedUrl", webPage.getExpandedUrl());
+				o.setField("mediaThumbnai.", webPage.getMediaThumbnail());
 				
 				_webPageDAO.updateWebPage(webPage.getUrl(), o);
 			}
 			else {
-				// Insert new web page (this should never happen)
+				// Insert new web page (this should never happen in production)
 				_webPageDAO.addWebPage(webPage);
 			}
-			
-			
+		
 		}
 		catch(Exception ex) {
 			logger.error(ex);
