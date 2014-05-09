@@ -71,7 +71,7 @@ public class RankerBolt extends BaseRichBolt {
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields(inputField));
+		declarer.declare(new Fields("webpages"));
 	}
 
 	private double getScore(WebPage wp) {

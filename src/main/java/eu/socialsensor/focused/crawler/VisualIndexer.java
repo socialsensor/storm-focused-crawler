@@ -19,12 +19,15 @@ import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.InvalidTopologyException;
+import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.topology.base.BaseRichSpout;
 
 public class VisualIndexer {
 
+	private static Logger logger = Logger.getLogger(VisualIndexer.class);
+	
 	/**
 	 *	@author Manos Schinas - manosetro@iti.gr
 	 *
@@ -41,8 +44,6 @@ public class VisualIndexer {
 	 */
 	public static void main(String[] args) throws UnknownHostException {
 		
-		Logger logger = Logger.getLogger(VisualIndexer.class);
-		
 		XMLConfiguration config;
 		try {
 			if(args.length == 1)
@@ -54,6 +55,52 @@ public class VisualIndexer {
 			logger.error(ex);
 			return;
 		}
+		
+		StormTopology topology;
+		try {
+			topology = createTopology(config);
+		}
+		catch(Exception e) {
+			logger.error("Cannot create topology", e);
+			return;
+		}
+		
+		if(topology == null) {
+			logger.error("Tpology is null. ");
+			return;
+		}
+		
+        // Run topology
+        String name = config.getString("topology.visualIndexerName", "VisualIndexer");
+        boolean local = config.getBoolean("topology.local", true);
+        
+        Config conf = new Config();
+        conf.setDebug(false);
+        
+        if(!local) {
+        	System.out.println("Submit topology to Storm cluster");
+			try {
+				int workers = config.getInt("topology.workers", 2);
+				conf.setNumWorkers(workers);
+				
+				StormSubmitter.submitTopology(name, conf, topology);
+			}
+			catch(NumberFormatException e) {
+				logger.error(e);
+			} catch (AlreadyAliveException e) {
+				logger.error(e);
+			} catch (InvalidTopologyException e) {
+				logger.error(e);
+			}
+			
+		} else {
+			logger.info("Run topology in local mode");
+			LocalCluster cluster = new LocalCluster();
+			cluster.submitTopology(name, conf, topology);
+		}
+	}
+	
+	public static StormTopology createTopology(XMLConfiguration config) {
 		
 		String redisHost = config.getString("redis.hostname", "xxx.xxx.xxx.xxx");
 		String redisMediaChannel = config.getString("redis.mediaItemsChannel", "media");
@@ -104,50 +151,23 @@ public class VisualIndexer {
 			mediaTextIndexer = new MediaTextIndexerBolt(mediaTextIndexService);
 		} catch (Exception e) {
 			logger.error(e);
-			return;
+			return null;
 		}
 		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
 		builder.setSpout("miInjector", miSpout, 1);
-		
+				
 		builder.setBolt("miRanker", miRanker, 4).shuffleGrouping("miInjector");
 
 		builder.setBolt("counter", mediaCounter, 1).shuffleGrouping("miRanker");
-        builder.setBolt("indexer", visualIndexer, 16).shuffleGrouping("miRanker");
-        builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
-        builder.setBolt("conceptDetector", conceptDetector, 1).shuffleGrouping("indexer");
-        
+		builder.setBolt("indexer", visualIndexer, 16).shuffleGrouping("miRanker");
+		builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
+		builder.setBolt("conceptDetector", conceptDetector, 1).shuffleGrouping("indexer");
+		        
 		builder.setBolt("mediaupdater", mediaUpdater, 1).shuffleGrouping("conceptDetector");
 		builder.setBolt("mediaTextIndexer", mediaTextIndexer, 1).shuffleGrouping("conceptDetector");
 		
-        // Run topology
-        String name = config.getString("topology.visualIndexerName", "VisualIndexer");
-        boolean local = config.getBoolean("topology.local", true);
-        
-        Config conf = new Config();
-        conf.setDebug(false);
-        
-        if(!local) {
-        	System.out.println("Submit topology to Storm cluster");
-			try {
-				int workers = config.getInt("topology.workers", 2);
-				conf.setNumWorkers(workers);
-				
-				StormSubmitter.submitTopology(name, conf, builder.createTopology());
-			}
-			catch(NumberFormatException e) {
-				logger.error(e);
-			} catch (AlreadyAliveException e) {
-				logger.error(e);
-			} catch (InvalidTopologyException e) {
-				logger.error(e);
-			}
-			
-		} else {
-			logger.info("Run topology in local mode");
-			LocalCluster cluster = new LocalCluster();
-			cluster.submitTopology(name, conf, builder.createTopology());
-		}
+		return builder.createTopology();
 	}
 }

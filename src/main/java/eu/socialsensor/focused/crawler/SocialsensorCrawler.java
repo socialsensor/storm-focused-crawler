@@ -6,7 +6,6 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
-import eu.socialsensor.focused.crawler.bolts.media.ClustererBolt;
 import eu.socialsensor.focused.crawler.bolts.media.ConceptDetectionBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaRankerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaTextIndexerBolt;
@@ -115,8 +114,8 @@ public class SocialsensorCrawler {
 		String streamUsersCollection = config.getString("mongodb.streamUsersCollection", "StreamUsers");
 		String webPagesDB = config.getString("mongodb.webPagesDB", "Prototype");
 		String webPagesCollection = config.getString("mongodb.webPagesCollection", "WebPages");
-		String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
-		String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
+		//String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
+		//String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
 		
 		String visualIndexHostname = config.getString("visualindex.hostname");
 		String visualIndexCollection = config.getString("visualindex.collection");
@@ -146,8 +145,8 @@ public class SocialsensorCrawler {
 		BaseRichSpout wpSpout, miSpout;
 		IRichBolt wpRanker, miRanker;
 		IRichBolt urlExpander, articleExtraction, mediaExtraction;
-		IRichBolt mediaUpdater, updater, textIndexer;
-		IRichBolt visualIndexer, clusterer, mediaTextIndexer, conceptDetector;
+		IRichBolt mediaUpdater, webPageUpdater, textIndexer;
+		IRichBolt visualIndexer, mediaTextIndexer, conceptDetector;
 		
 		wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
 		miSpout = new RedisSpout(redisHost, mediaItemsChannel, "id");
@@ -157,15 +156,14 @@ public class SocialsensorCrawler {
 			
 		// Web Pages Bolts
 		urlExpander = new URLExpanderBolt("webpages");
-		articleExtraction = new ArticleExtractionBolt(48);
+		articleExtraction = new ArticleExtractionBolt(24);
 		mediaExtraction = new MediaExtractionBolt();
-		updater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
+		webPageUpdater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
 		textIndexer = new TextIndexerBolt(textIndexService);
 			
 		// Media Items Bolts
 		visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
-		clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection,
-					visualIndexHostname, visualIndexCollection);
+		//clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection);
 		conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
 		mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
 		mediaTextIndexer = new MediaTextIndexerBolt(mediaTextIndexService);
@@ -175,27 +173,29 @@ public class SocialsensorCrawler {
 		TopologyBuilder builder = new TopologyBuilder();
 		
 		// Input in topology
-		builder.setSpout("wpInjector", wpSpout, 1);
-		builder.setSpout("miInjector", miSpout, 1);
+		builder.setSpout("wpSpout", wpSpout, 1);
+		builder.setSpout("miSpout", miSpout, 1);
 		
 		// Web Pages Bolts
-		builder.setBolt("wpRanker", wpRanker, 4).shuffleGrouping("wpInjector");
+		builder.setBolt("wpRanker", wpRanker, 4).shuffleGrouping("wpSpout");
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpRanker");
 		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "webpage");
 		builder.setBolt("mediaExtraction", mediaExtraction, 4).shuffleGrouping("expander", "media");
-		builder.setBolt("updater", updater, 4)
+		builder.setBolt("webPageUpdater", webPageUpdater, 4)
 			.shuffleGrouping("articleExtraction", "webpage")
 			.shuffleGrouping("mediaExtraction", "webpage");
 		builder.setBolt("textIndexer", textIndexer, 1)
 			.shuffleGrouping("articleExtraction", "webpage");
 
 		// Media Items Bolts
-		builder.setBolt("miRanker", miRanker, 4).shuffleGrouping("miInjector");
+		builder.setBolt("miRanker", miRanker, 4).shuffleGrouping("miSpout");
         builder.setBolt("indexer", visualIndexer, 16)
+        	.shuffleGrouping("miRanker")
 			.shuffleGrouping("articleExtraction", "media")
 			.shuffleGrouping("mediaExtraction", "media");
+        
         builder.setBolt("conceptDetector", conceptDetector, 1).shuffleGrouping("indexer");
-        builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
+        //builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
         builder.setBolt("mediaupdater", mediaUpdater, 1).shuffleGrouping("conceptDetector");
 		builder.setBolt("mediaTextIndexer", mediaTextIndexer, 1).shuffleGrouping("conceptDetector");
 		

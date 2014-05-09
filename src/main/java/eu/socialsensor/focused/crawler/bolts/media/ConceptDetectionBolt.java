@@ -107,7 +107,7 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 		private ConceptType[] conceptValues = ConceptType.values();
 		private BlockingQueue<Pair<ImageVector, MediaItem>> queue;
 		
-		private long defaultPeriod = 60; // Run every one minute
+		private long defaultPeriod = 2 * 60; // Run every two minutes
 		
 		public DetectionTask(BlockingQueue<Pair<ImageVector, MediaItem>> queue) {
 			this.queue = queue;
@@ -128,8 +128,10 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 				}
 				
 				// Concept Detector needs 50 media items at least
-				if(queue.size() < 50) 
+				if(queue.size() < 50)  {
+					_logger.info("Queue size is less than 50 images. Wait some more time.");
 					continue;
+				}
 				
 				List<Pair<ImageVector, MediaItem>> mediaPairs = new ArrayList<Pair<ImageVector, MediaItem>>();
 				synchronized(queue) {

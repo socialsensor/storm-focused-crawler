@@ -6,6 +6,7 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
+import eu.socialsensor.focused.crawler.bolts.media.MediaTextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
@@ -110,10 +111,12 @@ public class FocusedCrawler {
 		
 		String textIndexHostname = config.getString("textindex.hostname", "xxx.xxx.xxx.xxx:8080/solr");
 		String textIndexCollection = config.getString("textindex.collections/webpages", "WebPages");
+		String mediaIndexCollection = config.getString("textindex.collections/webpages", "MediaItems");
 		String textIndexService = textIndexHostname + "/" + textIndexCollection;
+		String mediaTextIndexService = textIndexHostname + "/" + mediaIndexCollection;
 		
 		BaseRichSpout wpSpout;
-		IRichBolt wpRanker, mediaUpdater, urlExpander;
+		IRichBolt wpRanker, mediaUpdater, urlExpander, mediaTextIndexer;
 		IRichBolt articleExtraction, mediaExtraction, webPageUpdater, textIndexer;
 		
 		try {
@@ -127,6 +130,7 @@ public class FocusedCrawler {
 			textIndexer = new TextIndexerBolt(textIndexService);
 
 			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
+			mediaTextIndexer = new MediaTextIndexerBolt(mediaTextIndexService);
 		} catch (Exception e) {
 			logger.error(e);
 			return null;
@@ -134,14 +138,16 @@ public class FocusedCrawler {
 		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
-		builder.setSpout("wpInjector", wpSpout, 1);
+		builder.setSpout("wpSpout", wpSpout, 1);
 				
-		builder.setBolt("wpRanker", wpRanker, 4).shuffleGrouping("wpInjector");
+		builder.setBolt("wpRanker", wpRanker, 4).shuffleGrouping("wpSpout");
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpRanker");
 				
 				
-		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "webpage");
-		builder.setBolt("mediaExtraction", mediaExtraction, 4).shuffleGrouping("expander", "media");
+		builder.setBolt("articleExtraction", articleExtraction, 1)
+			.shuffleGrouping("expander", "webpage");
+		builder.setBolt("mediaExtraction", mediaExtraction, 1)
+			.shuffleGrouping("expander", "media");
 				
 		builder.setBolt("webPageUpdater", webPageUpdater, 4)
 			.shuffleGrouping("articleExtraction", "webpage")
@@ -151,6 +157,10 @@ public class FocusedCrawler {
 			.shuffleGrouping("articleExtraction", "webpage");
 				
 		builder.setBolt("mediaupdater", mediaUpdater, 1)
+			.shuffleGrouping("articleExtraction", "media")
+			.shuffleGrouping("mediaExtraction", "media");
+		
+		builder.setBolt("mediatextindexer", mediaTextIndexer, 1)
 			.shuffleGrouping("articleExtraction", "media")
 			.shuffleGrouping("mediaExtraction", "media");
 		

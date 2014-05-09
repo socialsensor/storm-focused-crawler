@@ -120,7 +120,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		SocialMediaRetriever retriever = null;
 		String mediaId = null;
 		String source = null;
-		System.out.println(url);
+		
 		Matcher matcher;
 		if((matcher = instagramPattern.matcher(url)).matches()) {
 			mediaId = matcher.group(1);
@@ -148,10 +148,9 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			source = "dailymotion";
 		}
 		else {
+			logger.error(url + " matches nothing.");
 			return null;
 		}
-		
-		System.out.println("matches " + source);
 		
 		if(mediaId == null || retriever == null) {
 			return null;
@@ -180,7 +179,6 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			return mediaItem;
 		}
 		catch(Exception e) {
-			e.printStackTrace();
 			logger.error(e);
 			return null;
 		}

@@ -22,8 +22,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.protocol.BasicHttpContext;
-import org.apache.http.protocol.HttpContext;
+
 import org.apache.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -108,8 +107,8 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		_tupleQueue =  new LinkedBlockingQueue<Object>();
 		
 		_cm = new PoolingHttpClientConnectionManager();
-		_cm.setMaxTotal(200);
-		_cm.setDefaultMaxPerRoute(20);
+		_cm.setMaxTotal(numOfFetchers);
+		_cm.setDefaultMaxPerRoute(10);
 
 		_httpclient = HttpClients.custom()
 		        .setConnectionManager(_cm)
@@ -133,7 +132,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	    	fetchers[i] = new Thread(new HttpFetcher(_queue));
 	    	fetchers[i].start();
 	    }
-	    
 	}
 
 	public void execute(Tuple tuple) {
