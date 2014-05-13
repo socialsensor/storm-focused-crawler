@@ -375,7 +375,6 @@ public class ArticleExtractionBolt extends BaseRichBolt {
   		}
   		
   		for(Image image  : detectedImages) {
-  			System.out.println(image.getSrc());
   			Integer w = -1, h = -1;
   			try {
   				String width = image.getWidth().replaceAll("%", "");
@@ -412,7 +411,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			String alt = image.getAlt();
 			if(alt == null) {
 				alt = webPage.getTitle();
-				if(alt==null)
+				if(alt == null)
 					continue;
 			}
 			

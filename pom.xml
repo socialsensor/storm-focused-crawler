@@ -104,11 +104,13 @@
 			<artifactId>mm-concept-detection</artifactId>
 			<version>0.1-SNAPSHOT</version>
 		</dependency>
+		<!--
 		<dependency>
 			<groupId>eu.socialsensor</groupId>
 			<artifactId>socialsensor-stream-manager</artifactId>
 			<version>0.1-SNAPSHOT</version>
 		</dependency>
+		-->
 		<dependency>
 			<groupId>edu.stanford.nlp</groupId>
 			<artifactId>stanford-corenlp</artifactId>

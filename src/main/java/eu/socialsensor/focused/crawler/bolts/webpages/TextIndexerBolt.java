@@ -15,7 +15,6 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Tuple;
 
-
 public class TextIndexerBolt extends BaseRichBolt {
 
 	/**
@@ -66,7 +65,8 @@ public class TextIndexerBolt extends BaseRichBolt {
 		public void run() {
 			while(true) {
 				try {
-					Thread.sleep(60 * 1000);
+					// Just wait 10 seconds
+					Thread.sleep(10 * 1000);
 
 					List<WebPage> webPages = new ArrayList<WebPage>();
 					queue.drainTo(webPages);
@@ -77,7 +77,7 @@ public class TextIndexerBolt extends BaseRichBolt {
 						logger.info(webPages.size() + " web pages indexed in Solr");
 					}
 					else {
-						logger.error("Indexing in Solr failed for web pages");
+						logger.error("Indexing in Solr failed for some web pages");
 					}
 				} catch (Exception e) {
 					logger.error(e);

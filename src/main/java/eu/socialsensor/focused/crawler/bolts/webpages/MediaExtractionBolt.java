@@ -14,6 +14,7 @@ import eu.socialsensor.framework.common.domain.StreamUser;
 import eu.socialsensor.framework.common.domain.WebPage;
 import eu.socialsensor.framework.retrievers.socialmedia.SocialMediaRetriever;
 import eu.socialsensor.framework.retrievers.socialmedia.dailymotion.DailyMotionRetriever;
+import eu.socialsensor.framework.retrievers.socialmedia.facebook.FacebookRetriever;
 import eu.socialsensor.framework.retrievers.socialmedia.instagram.InstagramRetriever;
 import eu.socialsensor.framework.retrievers.socialmedia.twitpic.TwitpicRetriever;
 import eu.socialsensor.framework.retrievers.socialmedia.vimeo.VimeoRetriever;
@@ -46,6 +47,8 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	//private static String instagramToken = "";
 	//private static String instagramSecret = "";
 	
+	private static String facebookToken = "260504214011769|jATWKceE7aVH4jxsB4DBuNjKBRc";
+	
 	private static String youtubeClientId = "manosetro";
 	private static String youtubeDevKey = "AI39si6DMfJRhrIFvJRv0qFubHHQypIwjkD-W7tsjLJArVKn9iR-QoT8t-UijtITl4TuyHzK-cxqDDCkCBoJB-seakq1gbt1iQ";
 
@@ -54,6 +57,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	private static Pattern vimeoPattern 		= 	Pattern.compile("http://vimeo.com/([0-9]+)/*$");
 	private static Pattern twitpicPattern 		= 	Pattern.compile("http://twitpic.com/([A-Za-z0-9]+)/*.*$");
 	private static Pattern dailymotionPattern 	= 	Pattern.compile("http://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
+	private static Pattern facebookPattern 		= 	Pattern.compile("http.*://www.facebook.com/photo.php?.*fbid=([a-zA-Z0-9_\\-]+)(&.+=.+)*");
 	
 	private Map<String, SocialMediaRetriever> retrievers = new HashMap<String, SocialMediaRetriever>();
 	
@@ -72,6 +76,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		retrievers.put("vimeo", new VimeoRetriever());
 		retrievers.put("twitpic", new TwitpicRetriever());
 		retrievers.put("dailymotion", new DailyMotionRetriever());
+		retrievers.put("facebook", new FacebookRetriever(facebookToken));
 	}
 
 	public void execute(Tuple tuple) {
@@ -146,6 +151,11 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			mediaId = matcher.group(1);
 			retriever = retrievers.get("dailymotion");
 			source = "dailymotion";
+		}
+		else if((matcher = facebookPattern.matcher(url)).matches()) {
+			mediaId = matcher.group(1);
+			retriever = retrievers.get("facebook");
+			source = "facebook";
 		}
 		else {
 			logger.error(url + " matches nothing.");

@@ -78,6 +78,7 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 		public void run() {
 			while(true) {
 				try {
+					// Just wait 10 seconds
 					Thread.sleep(10 * 1000);
 
 					List<MediaItem> mItems = new ArrayList<MediaItem>();
@@ -89,10 +90,10 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 					boolean inserted = solrMediaHandler.insertMediaItems(mItems);
 					
 					if(inserted) {
-						logger.info(mItems.size() + " media items indexed in Solr");
+						logger.info(mItems.size() + " media items indexed in Solr.");
 					}
 					else {
-						logger.error("Indexing in Solr failed for MediaItem");
+						logger.error("Indexing in Solr failed for some media items.");
 					}
 				} catch (Exception e) {
 					logger.error(e);

@@ -1,23 +1,7 @@
 package eu.socialsensor.focused.crawler.bolts.storages;
 
-import java.util.List;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
-
-import com.mongodb.MongoException;
-
-import eu.socialsensor.framework.client.dao.impl.ItemDAOImpl;
-import eu.socialsensor.framework.client.dao.impl.MediaItemDAOImpl;
-import eu.socialsensor.framework.client.dao.impl.MediaSharesDAOImpl;
-import eu.socialsensor.framework.client.dao.impl.StreamUserDAOImpl;
-import eu.socialsensor.framework.client.dao.impl.WebPageDAOImpl;
-import eu.socialsensor.framework.common.domain.Item;
-import eu.socialsensor.framework.common.domain.MediaItem;
-import eu.socialsensor.framework.common.domain.StreamUser;
-import eu.socialsensor.framework.common.domain.WebPage;
-import eu.socialsensor.sfc.streams.StorageConfiguration;
-import eu.socialsensor.sfc.streams.store.MongoDbStorage;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -29,6 +13,27 @@ public class MongoStorageBolt extends BaseRichBolt {
 	/**
 	 * 
 	 */
+	private static final long serialVersionUID = -2613697672344106360L;
+
+	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
+			OutputCollector collector) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void execute(Tuple input) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void declareOutputFields(OutputFieldsDeclarer declarer) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	/**
+	 * 
+	 *
 	private static final long serialVersionUID = -2613697672344106360L;
 
 	private static String HOST = "mongodb.host";
@@ -149,7 +154,7 @@ public class MongoStorageBolt extends BaseRichBolt {
 					}
 					else {
 						// Update statistics of stream user
-						/*
+						
 						synchronized(usersMap) {
 							StreamUser tempUser = usersMap.get(user.getId());
 							if(tempUser == null) {
@@ -160,7 +165,7 @@ public class MongoStorageBolt extends BaseRichBolt {
 							tempUser.incItems(1);
 							tempUser.incMentions(1L);
 						}
-						*/
+						
 						
 					}
 				}
@@ -168,7 +173,7 @@ public class MongoStorageBolt extends BaseRichBolt {
 				if(item.getMentions() != null) {
 					String[] mentionedUsers = item.getMentions();
 					for(String mentionedUser : mentionedUsers) {
-						/*
+					
 						synchronized(usersMap) {
 							StreamUser tempUser = usersMap.get(mentionedUser);
 							if(tempUser == null) {
@@ -178,12 +183,11 @@ public class MongoStorageBolt extends BaseRichBolt {
 							}
 							tempUser.incMentions(1L);
 						}
-						*/
+						
 					}
 				}
 
 				if(item.getReferencedUserId() != null) {
-					/*
 					String userid = item.getReferencedUserId();
 					synchronized(usersMap) {
 						StreamUser tempUser = usersMap.get(userid);
@@ -194,7 +198,6 @@ public class MongoStorageBolt extends BaseRichBolt {
 						}
 						tempUser.incShares(1L);
 					}
-					*/
 				}
 				
 				// Handle Media Items
@@ -205,7 +208,6 @@ public class MongoStorageBolt extends BaseRichBolt {
 					}
 					else {
 						//Update media item
-						//mediaItemDAO.updateMediaItemPopularity(mediaItem);
 					}
 					
 					if(_mediaSharesDAO != null) {
@@ -224,14 +226,12 @@ public class MongoStorageBolt extends BaseRichBolt {
 							_webPageDAO.addWebPage(webPage);
 						}
 						else {
-							/*
 							synchronized(webpagesSharesMap) {
 								Integer shares = webpagesSharesMap.get(webPageURL);
 								if(shares == null)
 									shares = 0;
 								webpagesSharesMap.put(webPageURL, ++shares);
 							}
-							*/
 						}
 					}
 				}
@@ -244,6 +244,8 @@ public class MongoStorageBolt extends BaseRichBolt {
 			e.printStackTrace();
 			System.out.println("Storing item " + item.getId() + " failed.");
 		}
-	
+			
 	}
+	*/
+	
 }

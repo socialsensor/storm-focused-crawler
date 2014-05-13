@@ -47,8 +47,9 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 	
 	private String matlabFile;
 	private BlockingQueue<Pair<ImageVector, MediaItem>> queue;
-	private Thread thread;
-	private DetectionTask task;
+	
+	private Thread conceptDetectionThread;
+	private ConceptDetectionTask conceptDetectionTask;
 	private OutputCollector _collector;
 	
 	private ConceptDetector _detector = null;
@@ -71,9 +72,9 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 			
 			_detector = new ConceptDetector(matlabFile);
 			
-			task = new DetectionTask(queue);
-			thread = new Thread(task);
-			thread.start();
+			conceptDetectionTask = new ConceptDetectionTask(queue);
+			conceptDetectionThread = new Thread(conceptDetectionTask);
+			conceptDetectionThread.start();
 		}
 		catch(Exception e) {
 			_logger.fatal(e);
@@ -102,18 +103,18 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 	}
 	
 	
-	public class DetectionTask implements Runnable {
+	public class ConceptDetectionTask implements Runnable {
 
 		private ConceptType[] conceptValues = ConceptType.values();
 		private BlockingQueue<Pair<ImageVector, MediaItem>> queue;
 		
-		private long defaultPeriod = 2 * 60; // Run every two minutes
+		private long defaultPeriod = 15; // Run every 15 seconds
 		
-		public DetectionTask(BlockingQueue<Pair<ImageVector, MediaItem>> queue) {
+		public ConceptDetectionTask(BlockingQueue<Pair<ImageVector, MediaItem>> queue) {
 			this.queue = queue;
 		}
 		
-		public DetectionTask(BlockingQueue<Pair<ImageVector, MediaItem>> queue, int period) {
+		public ConceptDetectionTask(BlockingQueue<Pair<ImageVector, MediaItem>> queue, int period) {
 			this.queue = queue;
 			defaultPeriod = period;
 		}
@@ -123,13 +124,13 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 				try {
 					Thread.sleep(defaultPeriod * 1000);
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					_logger.error("ConceptDetectionTask failed to sleep. Stop execution.", e);
 					break;
 				}
 				
-				// Concept Detector needs 50 media items at least
-				if(queue.size() < 50)  {
-					_logger.info("Queue size is less than 50 images. Wait some more time.");
+				// Concept Detector needs 100 media items at least
+				if(queue.size() < 100)  {
+					_logger.info("Queue size is less than 100 images. Let's wait some more time.");
 					continue;
 				}
 				
@@ -139,7 +140,7 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 				}
 				
 				if(mediaPairs.isEmpty()) {
-					_logger.info("Queue is empty! ");
+					_logger.info("Queue is empty!!!");
 					continue;
 				}
 				else {
@@ -172,8 +173,10 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 							int conceptIndex = (int) concepts[i][0];
 							double score = concepts[i][1];
 							
-							if(conceptIndex<1 || conceptIndex>9)
+							if(conceptIndex<1 || conceptIndex>9) {
+								_logger.error("Condept Index (" + conceptIndex + ") out of bounds for " + mediaId);
 								continue;
+							}
 							
 							ConceptType conceptType = conceptValues[conceptIndex-1];
 						
@@ -185,8 +188,7 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 							}
 						}
 						catch(Exception e) {
-							e.printStackTrace();
-							_logger.error(e);
+							_logger.error("Error for media item " + mediaIds[i], e);
 							continue;
 						}
 					}
