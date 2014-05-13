@@ -12,7 +12,7 @@ import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.TextIndexerBolt;
-import eu.socialsensor.focused.crawler.bolts.webpages.URLExpanderBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.URLExpansionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.WebPagesUpdaterBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
 import backtype.storm.Config;
@@ -122,7 +122,7 @@ public class FocusedCrawler {
 		try {
 			wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
 			wpRanker = new RankerBolt(webPagesChannel);
-			urlExpander = new URLExpanderBolt(webPagesChannel);
+			urlExpander = new URLExpansionBolt(webPagesChannel);
 			
 			articleExtraction = new ArticleExtractionBolt(24);
 			mediaExtraction = new MediaExtractionBolt();

@@ -20,24 +20,21 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.utils.Utils;
 
-public class URLExpanderBolt extends BaseRichBolt {
+public class URLExpansionBolt extends BaseRichBolt {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -5514715036795163046L;
-
-	private Logger logger;
-	
-	private OutputCollector _collector;
-	
 	private static int max_redirects = 4;
 	
+	private Logger logger;
+	private OutputCollector _collector;
+	
 	private Set<String> socialMediaTargets = new HashSet<String>();
-
 	private String inputField;
 	
-	public URLExpanderBolt(String inputField) throws Exception {
+	public URLExpansionBolt(String inputField) throws Exception {
 		
 		this.inputField = inputField;
 		
@@ -52,7 +49,7 @@ public class URLExpanderBolt extends BaseRichBolt {
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
 		
-		logger = Logger.getLogger(URLExpanderBolt.class);
+		logger = Logger.getLogger(URLExpansionBolt.class);
 		
 		this._collector = collector;
 	}
@@ -101,51 +98,6 @@ public class URLExpanderBolt extends BaseRichBolt {
 			Utils.sleep(50);
 		}
 	}
-
-//	class ExpanderThread extends Thread {
-//		
-//		int pages = 0;
-//		
-//		public void run() {
-//			while(true) {
-//				WebPage webPage = null;
-//				synchronized(queue) {
-//					if(++pages%100==0) {
-//						System.out.println(pages + " pages. " + queue.size() + " entries in queue!");
-//					}
-//					webPage = queue.poll();
-//				}
-//				if(webPage != null) {
-//					
-//					try {
-//						String url = webPage.getUrl();
-//						
-//						String expandedUrl = expand(url);
-//						if(expandedUrl != null) {
-//							URL temp = new URL(expandedUrl);
-//							String domain = temp.getHost();
-//							
-//							BasicDBObject f = new BasicDBObject("expandeUrl", expandedUrl);
-//							f.put("domain", domain);
-//							BasicDBObject o = new BasicDBObject("$set", f);
-//							BasicDBObject q = new BasicDBObject("url", url);
-//							_collection.update(q , o);
-//							
-//							if(targets.contains(domain))
-//								_collector.emit("media", tuple(url, expandedUrl));
-//							else
-//								_collector.emit("article", tuple(url, expandedUrl));
-//						}
-//					} catch (Exception e) {
-//
-//					}
-//				}
-//				else {
-//					Utils.sleep(500);
-//				}
-//			}
-//		};
-//	}
 	
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declareStream("media", new Fields("webPage"));

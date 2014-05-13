@@ -41,8 +41,9 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	private StreamUserDAO _streamUsersDAO;
 	private OutputCollector _collector;
 
-
-
+	private long received = 0;
+	private long newMedia=0, existedMedia = 0;
+	
 	public MediaUpdaterBolt(String mongodbHostname, String mediaItemsDB, String mediaItemsCollection, 
 			String streamUsersDB, String streamUsersCollection) {
 		
@@ -75,13 +76,22 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	public void execute(Tuple tuple) {
 		if(_mediaItemDAO != null) {
 			
+			
 			try {
+				
+			if(++received%1000==0) {
+				logger.info(received + " media items received. " + newMedia + " are new and "
+						+ existedMedia + " already exists!");
+			}
+				
 			MediaItem mediaItem = (MediaItem) tuple.getValueByField("MediaItem");
 				if(mediaItem == null)
 					return;
 			
 				if(_mediaItemDAO.exists(mediaItem.getId())) {
 				
+					existedMedia++;
+					
 					UpdateItem update = new UpdateItem();
 					update.setField("vIndexed", mediaItem.isVisualIndexed());
 					update.setField("status", mediaItem.isVisualIndexed()?"indexed":"failed");
@@ -101,7 +111,11 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 					_mediaItemDAO.updateMediaItem(mediaItem.getId(), update);
 				}
 				else {
+					newMedia++;
+					
+					// Emit for indexing 
 					_collector.emit(tuple(mediaItem));
+					
 					_mediaItemDAO.addMediaItem(mediaItem);
 					
 					StreamUser user = mediaItem.getUser();

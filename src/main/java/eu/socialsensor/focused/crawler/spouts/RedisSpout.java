@@ -75,7 +75,8 @@ public class RedisSpout extends BaseRichSpout {
 						queue.offer(message);
 						ids.add(id);
 						if(ids.size() % 2000 == 0) {
-							logger.info(totalMessages + " messages received in total. " + ids.size() + " unique. " 
+							logger.info(totalMessages + " messages received in total from " + channel + ". "  
+									+ ids.size() + " unique. " 
 									+ queue.size() + " in redis spout queue.");
 						}
 					}

@@ -2,12 +2,20 @@ package eu.socialsensor.focused.crawler.bolts.media;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.net.URL;
+import java.io.InputStream;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.log4j.Logger;
 
 import eu.socialsensor.focused.crawler.models.ImageVector;
@@ -42,6 +50,10 @@ public class VisualIndexerBolt extends BaseRichBolt {
 	private String webServiceHost;
 	private String indexCollection;
 
+	private CloseableHttpClient _httpclient;
+
+	private RequestConfig _requestConfig;
+
 	private static int[] numCentroids = { 128, 128, 128, 128 };
 	private static int targetLengthMax = 1024;
 	
@@ -74,21 +86,62 @@ public class VisualIndexerBolt extends BaseRichBolt {
 		
 		this._collector = collector;
 		this.visualIndex = new VisualIndexHandler(webServiceHost, indexCollection);
+
+		_requestConfig = RequestConfig.custom()
+		        .setSocketTimeout(30000)
+		        .setConnectTimeout(30000)
+		        .build();
+		PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
+		_httpclient = HttpClients.custom()
+		        .setConnectionManager(cm)
+		        .build();
 	}
 
 	public void execute(Tuple tuple) {
 		MediaItem mediaItem = (MediaItem) tuple.getValueByField("MediaItem");
 		if(mediaItem == null)
 			return;
-			
-		ImageVector imgVec = null;
+		
+		HttpGet httpget = null;
+		ImageVector imageVector = null;
 		try {
 			String id = mediaItem.getId();
 			String type = mediaItem.getType();
 			
 			String url = type.equals("image") ? mediaItem.getUrl() : mediaItem.getThumbnail();
 			
-			byte[] imageContent = IOUtils.toByteArray(new URL(url.replaceAll(" ", "%20")));
+			httpget = new HttpGet(url.replaceAll(" ", "%20"));
+			httpget.setConfig(_requestConfig);
+			HttpResponse response = _httpclient.execute(httpget);
+			
+			StatusLine status = response.getStatusLine();
+			int code = status.getStatusCode();
+			
+			if(code<200 || code>=300) {
+				logger.error("Failed fetch media item " + id + ". URL=" + url +  
+						". Http code: " + code + " Error: " + status.getReasonPhrase());
+				
+				mediaItem.setVisualIndexed(false);
+				_collector.emit(tuple(mediaItem, imageVector));
+				
+				return;
+			}
+			
+			HttpEntity entity = response.getEntity();
+			if(entity == null) {
+				logger.error("Entity is null for " + id + ". URL=" + url +  
+						". Http code: " + code + " Error: " + status.getReasonPhrase());
+				
+				mediaItem.setVisualIndexed(false);
+				_collector.emit(tuple(mediaItem, imageVector));
+				
+				return;
+			}
+			
+			InputStream input = entity.getContent();
+			byte[] imageContent = IOUtils.toByteArray(input);
+			
+			//byte[] imageContent = IOUtils.toByteArray(new URL(url.replaceAll(" ", "%20")));
 			BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageContent));
 			
 			boolean indexed = false;
@@ -103,22 +156,30 @@ public class VisualIndexerBolt extends BaseRichBolt {
 				ImageVectorizationResult imvr = imvec.call();
 				double[] vector = imvr.getImageVector();
 				
-				imgVec = new ImageVector(id, url, vector);
-				indexed = visualIndex.index(mediaItem.getId(), vector);
+				if(vector==null || vector.length==0) {
+					logger.error("Error in feature extraction for " + id);
+				}
+				
+				imageVector = new ImageVector(id, url, vector);
+				indexed = visualIndex.index(id, vector);
 			}
 			
 			if(!indexed) {
-				logger.error("Failed to index media item with id=" + id);
+				logger.error("Failed to index media item " + id);
 			}
 			
 			mediaItem.setVisualIndexed(indexed);
-			_collector.emit(tuple(mediaItem, imgVec));
+			_collector.emit(tuple(mediaItem, imageVector));
 			
 		} 
 		catch (Exception e) {
 			logger.error(e);
 			mediaItem.setVisualIndexed(false);
-			_collector.emit(tuple(mediaItem, imgVec));
+			_collector.emit(tuple(mediaItem, imageVector));
+		}
+		finally {
+			if(httpget != null)
+				httpget.abort();
 		}
 	}
 

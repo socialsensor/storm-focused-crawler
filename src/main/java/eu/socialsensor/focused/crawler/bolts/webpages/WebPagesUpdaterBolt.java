@@ -29,6 +29,8 @@ public class WebPagesUpdaterBolt extends BaseRichBolt {
 	
 	private WebPageDAO _webPageDAO = null;
 	
+	private long received = 0, newWP = 0, existedWP = 0;
+	
 	public WebPagesUpdaterBolt(String mongodbHostname, String webPagesDB, String webPagesCollection) {
 		this.mongodbHostname = mongodbHostname;
 		
@@ -54,6 +56,12 @@ public class WebPagesUpdaterBolt extends BaseRichBolt {
 
 	public void execute(Tuple tuple) {
 		try {
+			if(++received%1000==0) {
+				logger.info(received + " web pages received. New: " + newWP + 
+						" Exists: " + existedWP);
+				
+			}
+			
 			WebPage webPage = (WebPage) tuple.getValueByField("WebPage");
 		
 			if(webPage == null || _webPageDAO == null)

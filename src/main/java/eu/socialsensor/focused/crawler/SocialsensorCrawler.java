@@ -7,15 +7,15 @@ import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
 import eu.socialsensor.focused.crawler.bolts.media.ConceptDetectionBolt;
-import eu.socialsensor.focused.crawler.bolts.media.MediaRankerBolt;
+import eu.socialsensor.focused.crawler.bolts.media.DeserializerMediaItemBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaTextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.media.VisualIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.DeserializerWebPageBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
-import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.TextIndexerBolt;
-import eu.socialsensor.focused.crawler.bolts.webpages.URLExpanderBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.URLExpansionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.WebPagesUpdaterBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
 import backtype.storm.Config;
@@ -143,7 +143,7 @@ public class SocialsensorCrawler {
 		
 		// Initialize spouts and bolts
 		BaseRichSpout wpSpout, miSpout;
-		IRichBolt wpRanker, miRanker;
+		IRichBolt wpDeserializer, miDeserializer;
 		IRichBolt urlExpander, articleExtraction, mediaExtraction;
 		IRichBolt mediaUpdater, webPageUpdater, textIndexer;
 		IRichBolt visualIndexer, mediaTextIndexer, conceptDetector;
@@ -151,11 +151,14 @@ public class SocialsensorCrawler {
 		wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
 		miSpout = new RedisSpout(redisHost, mediaItemsChannel, "id");
 			
-		wpRanker = new RankerBolt(webPagesChannel);
-		miRanker = new MediaRankerBolt(mediaItemsChannel);
+		//wpRanker = new RankerBolt(webPagesChannel);
+		//miRanker = new MediaRankerBolt(mediaItemsChannel);
 			
+		wpDeserializer = new DeserializerWebPageBolt(webPagesChannel);
+		miDeserializer = new DeserializerMediaItemBolt(mediaItemsChannel);
+		
 		// Web Pages Bolts
-		urlExpander = new URLExpanderBolt("webpages");
+		urlExpander = new URLExpansionBolt("webpages");
 		articleExtraction = new ArticleExtractionBolt(24);
 		mediaExtraction = new MediaExtractionBolt();
 		webPageUpdater = new WebPagesUpdaterBolt(mongodbHostname, webPagesDB, webPagesCollection);
@@ -177,27 +180,29 @@ public class SocialsensorCrawler {
 		builder.setSpout("miSpout", miSpout, 1);
 		
 		// Web Pages Bolts
-		builder.setBolt("wpRanker", wpRanker, 4).shuffleGrouping("wpSpout");
-		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpRanker");
+		//builder.setBolt("wpRanker", wpRanker, 2).shuffleGrouping("wpSpout");
+		builder.setBolt("wpDeserializer", wpDeserializer, 2).shuffleGrouping("wpSpout");
+		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpDeserializer");
 		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "webpage");
-		builder.setBolt("mediaExtraction", mediaExtraction, 4).shuffleGrouping("expander", "media");
-		builder.setBolt("webPageUpdater", webPageUpdater, 4)
+		builder.setBolt("mediaExtraction", mediaExtraction, 1).shuffleGrouping("expander", "media");
+		builder.setBolt("webPageUpdater", webPageUpdater, 1)
 			.shuffleGrouping("articleExtraction", "webpage")
 			.shuffleGrouping("mediaExtraction", "webpage");
 		builder.setBolt("textIndexer", textIndexer, 1)
 			.shuffleGrouping("articleExtraction", "webpage");
 
 		// Media Items Bolts
-		builder.setBolt("miRanker", miRanker, 4).shuffleGrouping("miSpout");
+		//builder.setBolt("miRanker", miRanker, 2).shuffleGrouping("miSpout");
+		builder.setBolt("miDeserializer", miDeserializer, 2).shuffleGrouping("miSpout");
         builder.setBolt("indexer", visualIndexer, 16)
-        	.shuffleGrouping("miRanker")
+        	.shuffleGrouping("miDeserializer")
 			.shuffleGrouping("articleExtraction", "media")
 			.shuffleGrouping("mediaExtraction", "media");
         
         builder.setBolt("conceptDetector", conceptDetector, 1).shuffleGrouping("indexer");
         //builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
         builder.setBolt("mediaupdater", mediaUpdater, 1).shuffleGrouping("conceptDetector");
-		builder.setBolt("mediaTextIndexer", mediaTextIndexer, 1).shuffleGrouping("conceptDetector");
+		builder.setBolt("mediaTextIndexer", mediaTextIndexer, 1).shuffleGrouping("mediaupdater");
 		
 		StormTopology topology = builder.createTopology();
 		return topology;

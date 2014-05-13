@@ -22,7 +22,6 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-
 import org.apache.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -69,23 +68,26 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	private OutputCollector _collector;
 	private HttpClient _httpclient;
 	
-	private BoilerpipeExtractor _extractor;
-	private BoilerpipeExtractor _articleExtractor;
+	private BoilerpipeExtractor _extractor, _articleExtractor;
 	private ImageExtractor _imageExtractor;
 	private SimpleEstimator _estimator;
 	
-	private int minDim = 150;
+	private int minDim = 200;
 	private int minArea = 200 * 200;
-	private int urlLength = 500;
+	private int maxUrlLength = 500;
 	
 	private PoolingHttpClientConnectionManager _cm;
 	
-	private int numOfFetchers = 48;
+	private int numOfFetchers = 24;
 	
 	private BlockingQueue<WebPage> _queue;
 	private BlockingQueue<Object> _tupleQueue;
 
 	private RequestConfig _requestConfig;
+	
+	public ArticleExtractionBolt() {
+
+	}
 	
 	public ArticleExtractionBolt(int numOfFetchers) {
 		this.numOfFetchers = numOfFetchers;
@@ -114,14 +116,18 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 		        .setConnectionManager(_cm)
 		        .build();
 		
-		this._requestConfig = RequestConfig.custom()
+		// Set timeout parameters for Http requests
+		_requestConfig = RequestConfig.custom()
 		        .setSocketTimeout(30000)
 		        .setConnectTimeout(30000)
 		        .build();
 
 		_articleExtractor = CommonExtractors.ARTICLE_EXTRACTOR;
 	    _extractor = CommonExtractors.ARTICLE_EXTRACTOR;
+	    // The use of Canola extractor increases recall of the returned media items but decreases precision.
+	    //_extractor = CommonExtractors.CANOLA_EXTRACTOR;
 	    _imageExtractor = ImageExtractor.INSTANCE;
+	    // Quality estimator of the article extraction process
 	    _estimator = SimpleEstimator.INSTANCE;	
 	    
 	    Thread emitter = new Thread(new Emitter(_collector, _tupleQueue));
@@ -189,8 +195,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				WebPage webPage = null;
 				try {
 					webPage = queue.take();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+				} catch (Exception e) {
 					logger.error(e);
 					continue;
 				}
@@ -243,8 +248,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					}
 					
 				} catch (Exception e) {
-					logger.error(e);
-					logger.error("for " + webPage.getExpandedUrl());
+					logger.error("for " + expandedUrl, e);
 					webPage.setStatus(FAILED);
 					_tupleQueue.add(webPage);
 				}
@@ -285,12 +289,12 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  	
 	  		String title = document.getTitle();
 	  		String text = document.getText(true, false);
-	  		
+
 	  		webPage.setTitle(title);
 	  		webPage.setText(text);
 	  		webPage.setArticle(!isLowQuality);
 	  		
-	  		mediaItems.addAll(extractAricleImages(imgDoc, webPage, base, content));		
+	  		mediaItems.addAll(extractArticleImages(imgDoc, webPage, base, content));		
 	  		webPage.setMedia(mediaItems.size());
 	  		
 	  		List<String> mediaIds = new ArrayList<String>();
@@ -344,7 +348,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  		Article article = new Article(title, text);
 	  		article.setLowQuality(isLowQuality);
 	  		
-	  		List<MediaItem> mediaItems = extractAricleImages(imgDoc, webPage, base, content);		
+	  		List<MediaItem> mediaItems = extractArticleImages(imgDoc, webPage, base, content);		
 	  		//List<MediaItem> mediaItems = extractAllImages(base, title, webPage, pageHash, content);
 	  		
 	  		for(MediaItem mItem : mediaItems) {
@@ -358,10 +362,10 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  	}
 	}
 	
-	public List<MediaItem> extractAricleImages(TextDocument document, WebPage webPage, String base, byte[] content) 
+	public List<MediaItem> extractArticleImages(TextDocument document, WebPage webPage, String base, byte[] content) 
 			throws IOException, BoilerpipeProcessingException {
 		
-		List<MediaItem> images = new ArrayList<MediaItem>();
+		List<MediaItem> mediaItems = new ArrayList<MediaItem>();
 		
 		InputSource imageslIS = new InputSource(new ByteArrayInputStream(content));
   		
@@ -369,8 +373,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
   		synchronized(_imageExtractor) {
   			detectedImages = _imageExtractor.process(document, imageslIS);
   		}
+  		
   		for(Image image  : detectedImages) {
-  			
+  			System.out.println(image.getSrc());
   			Integer w = -1, h = -1;
   			try {
   				String width = image.getWidth().replaceAll("%", "");
@@ -393,14 +398,14 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			try {
 				url = new URL(new URL(base), src);
 				
-				if(url.toString().length()>urlLength)
+				if(url.toString().length() > maxUrlLength)
 					continue;
 				
 				if(src.endsWith(".gif") || url.getPath().endsWith(".gif"))
 					continue;
 				
 			} catch (Exception e) {
-				logger.error(e);
+				logger.error("Error for " + src + " in " + base, e);
 				continue;
 			}
 			
@@ -413,7 +418,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			
 			MediaItem mediaItem = new MediaItem(url);
 			
-			// Create image unique id
+			// Create image unique id. Is this a good practice? 
 			int imageHash = (url.hashCode() & 0x7FFFFFFF);
 			
 			mediaItem.setId("Web#" + imageHash);
@@ -435,10 +440,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			if(webPage.getDate() != null)
 				mediaItem.setPublicationTime(webPage.getDate().getTime());
 			
-			images.add(mediaItem);
+			mediaItems.add(mediaItem);
 		}
-  		
-  		return images;
+  		return mediaItems;
 	}
 	
 	
@@ -464,25 +468,26 @@ public class ArticleExtractionBolt extends BaseRichBolt {
   				w = Integer.parseInt(width);
   				h = Integer.parseInt(height);
   				
-  			// filter small images
+  				// filter small images
   	  			if( (w*h) < minArea || w < minDim  || h < minDim) 
   					continue;
   			}
   			catch(Exception e) {
-  				
+  				logger.error(e);
   			}
 
 			URL url = null;
 			try {
 				url = new URL(src);
 				
-				if(url.toString().length()>urlLength)
+				if(url.toString().length() > maxUrlLength)
 					continue;
 				
 				if(src.endsWith(".gif") || url.getPath().endsWith(".gif"))
 					continue;
 				
 			} catch (Exception e) {
+				logger.error(e);
 				continue;
 			}
 			
@@ -558,9 +563,9 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				}
 			}
 		} catch (Exception e) {
+			logger.error(e);
 		}
 		
 		return videos;
 	}
-	
 }
