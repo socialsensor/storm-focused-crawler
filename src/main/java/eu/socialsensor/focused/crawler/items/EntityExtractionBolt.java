@@ -83,7 +83,7 @@ public class EntityExtractionBolt extends BaseRichBolt {
 		declarer.declare(new Fields("Item"));
 	}
 
-	public List<Entity> extract(String text) throws Exception{
+	public List<Entity> extract(String text) throws Exception {
 		Map<String, Entity> entities = new HashMap<String, Entity>();
 
 		String textXML = _classifier.classifyWithInlineXML(StringEscapeUtils.escapeXml(text));
@@ -121,7 +121,7 @@ public class EntityExtractionBolt extends BaseRichBolt {
 	
 	public static void main(String[] args) throws Exception {
 		
-		File serializedClassifier = new File("/media/manos/Data/Libs/stanford-ner-2014-01-04/classifiers/english.all.3class.distsim.crf.ser.gz");
+		File serializedClassifier = new File("english.all.3class.distsim.crf.ser.gz");
 		
 		EntityExtractionBolt bolt = new EntityExtractionBolt(serializedClassifier.toString());
 		bolt.prepare(null, null, null);
