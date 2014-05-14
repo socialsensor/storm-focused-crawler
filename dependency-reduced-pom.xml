@@ -11,7 +11,7 @@
   <artifactId>storm-focused-crawler</artifactId>
   <name>storm-focused-crawler</name>
   <version>0.1-SNAPSHOT</version>
-  <description>Collects multimedia content shared through social networks.</description>
+  <description>Collects and Index multimedia content shared through social networks.</description>
   <url>https://github.com/socialsensor/storm-focused-crawler</url>
   <developers>
     <developer>
@@ -69,6 +69,8 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <source>1.6</source>
+              <target>1.6</target>
               <filters>
                 <filter>
                   <artifact>*:*</artifact>
@@ -82,7 +84,7 @@
               <transformers>
                 <transformer>
                   <manifestEntries>
-                    <Main-Class>eu.socialsensor.focused.crawler.WebLinksHandler</Main-Class>
+                    <Main-Class>eu.socialsensor.focused.crawler.SocialsensorCrawler</Main-Class>
                     <Build-Number>123</Build-Number>
                   </manifestEntries>
                 </transformer>
@@ -93,5 +95,11 @@
       </plugin>
     </plugins>
   </build>
+  <repositories>
+    <repository>
+      <id>clojars.org</id>
+      <url>http://clojars.org/repo</url>
+    </repository>
+  </repositories>
 </project>
 
