@@ -15,6 +15,7 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
+import backtype.storm.tuple.Values;
 
 public class POSTaggingBolt extends BaseRichBolt {
 
@@ -47,19 +48,30 @@ public class POSTaggingBolt extends BaseRichBolt {
 		
 		String title = item.getTitle();
 		if(title != null) {
-			String taggedTitle = _tagger.tagString(title);
-			
-			List<List<TaggedWord>> taggedSentences = tag(title);
+			//String taggedTitle = _tagger.tagString(title);
+			List<TaggedWord> taggedSentences = tag(title);
+			_collector.emit(new Values(item, taggedSentences));
 		}
 	}
 
 	
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields("Item"));
+		declarer.declare(new Fields("Item", "PosTags"));
 	}
 	
-	private List<List<TaggedWord>> tag(String text) {
+	private List<TaggedWord> tag(String text) {
+		List<TaggedWord> taggedSentences = new ArrayList<TaggedWord>();
+		List<List<HasWord>> sentences = MaxentTagger.tokenizeText(new StringReader(text));
+		for(List<HasWord> sentence : sentences) {
+			ArrayList<TaggedWord> taggedWords = _tagger.tagSentence(sentence);	
+			taggedSentences.addAll(taggedWords);
+		}
+		
+		return taggedSentences;
+	}
+	
+	private List<List<TaggedWord>> tagSentences(String text) {
 		List<List<TaggedWord>> taggedSentences = new ArrayList<List<TaggedWord>>();
 		List<List<HasWord>> sentences = MaxentTagger.tokenizeText(new StringReader(text));
 		for(List<HasWord> sentence : sentences) {

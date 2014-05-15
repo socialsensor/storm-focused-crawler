@@ -1,7 +1,9 @@
 package eu.socialsensor.focused.crawler.items;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -81,13 +83,72 @@ public class EventDetectionBolt extends BaseRichBolt {
 				
 				t = System.currentTimeMillis();
 				
-				Vocabulary previousVocabulary = _vocabularySnapshots.getLast();
-				Map<String, Double> idfShift = _currentVocabulary.getShift(previousVocabulary);
+				_logger.info("Vocabulary: " + _currentVocabulary.size());
+				Vocabulary previousVocabulary = null;
+				try {
+					previousVocabulary = _vocabularySnapshots.getLast();
+				}
+				catch(Exception e){
+					_logger.error("Cannot take previous vocabulary. ");
+				}
+				
+				Map<String, Double> idfShift = null;
+				if(previousVocabulary != null) {
+					idfShift = _currentVocabulary.getShift(previousVocabulary);
+					_logger.info("IDF shifts: " + idfShift.size());
+				}
+				
+				_logger.info("Vocabulary Snapshots: " + _vocabularySnapshots.size());
 				
 				// TODO: Detect Event Candidates
+				Set<String> CEs = new HashSet<String>();
+				if(_vocabularySnapshots.size() >= _windows) {
+					for(String word : _currentVocabulary.getWords()) {
+						double currentIdf = _currentVocabulary.getIdf(word);
+						boolean isCandidate = true;
+						for(Vocabulary pV : _vocabularySnapshots) {
+							if(pV.hasWord(word)) {
+								double previousIdf = pV.getIdf(word);
+								if(currentIdf > previousIdf) {
+									isCandidate = false;
+									break;
+								}
+							}
+							else {
+								isCandidate = false;
+								break;
+							}
+						}
+						if(isCandidate) {
+							Double currentShift = idfShift.get(word);
+							for(Map<String, Double> pShifts : _idfShiftsSnapshots) {
+								if(pShifts.containsKey(word)) {
+									double previousShift = pShifts.get(word);
+									if(currentShift < previousShift) {
+										isCandidate = false;
+										break;
+									}
+								}
+								else {
+									isCandidate = false;
+									break;
+								}
+							}
+						}
+						
+						if(isCandidate) {
+							CEs.add(word);
+						}
+					}
+				}
 				
+				_logger.info("Candidate events: " + CEs.size());
+				_logger.info("Candidate events: " + CEs);
+				_logger.info("=================================");
 				_vocabularySnapshots.add(_currentVocabulary);
-				_idfShiftsSnapshots.add(idfShift);
+				
+				if(idfShift != null)
+					_idfShiftsSnapshots.add(idfShift);
 				
 				_currentVocabulary = new Vocabulary();
 				

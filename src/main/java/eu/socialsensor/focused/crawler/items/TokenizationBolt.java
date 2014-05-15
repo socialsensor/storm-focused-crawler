@@ -23,8 +23,9 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
+import backtype.storm.tuple.Values;
 
-public class TokenizerBolt extends BaseRichBolt {
+public class TokenizationBolt extends BaseRichBolt {
 
 	/**
 	 * 
@@ -33,21 +34,22 @@ public class TokenizerBolt extends BaseRichBolt {
 	
 	private OutputCollector _collector = null;
 
-	private int _ngrams = 1;
+	private int _minNgrams = 1, _maxNgrams = 1;
 	private Logger _logger;
 	
-	public TokenizerBolt() {
+	public TokenizationBolt() {
 	}
 	
-	public TokenizerBolt(int ngrams) {
-		_ngrams = ngrams;
+	public TokenizationBolt(int minNgrams, int maxNgrams) {
+		_minNgrams = minNgrams;
+		_maxNgrams = maxNgrams;
 	}
 	
 	@Override
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
 		
-		_logger = Logger.getLogger(TokenizerBolt.class);
+		_logger = Logger.getLogger(TokenizationBolt.class);
 		_collector = collector;	
 	}
 
@@ -57,10 +59,13 @@ public class TokenizerBolt extends BaseRichBolt {
 		if(item == null)
 			return;
 		
+		//List<TaggedWord> taggedSentences = (List<TaggedWord>) input.getValueByField("PosTags");
 		String title = item.getTitle();
 		if(title != null) {
 			try {
 				List<String> tokens = tokenize(title);
+				if(tokens != null && tokens.size()>0)
+					_collector.emit(new Values(tokens));
 			} catch (IOException e) {
 				_logger.error(e);
 			}
@@ -69,7 +74,7 @@ public class TokenizerBolt extends BaseRichBolt {
 
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields("Item"));
+		declarer.declare(new Fields("tokens"));
 	}
 	
 	public List<String> tokenize(String text) throws IOException {
@@ -81,8 +86,16 @@ public class TokenizerBolt extends BaseRichBolt {
         
         stream = new LowerCaseFilter(Version.LUCENE_40, stopFilter);
         
-        if(_ngrams > 1) {
-        	stream = new ShingleFilter(stream, 2, _ngrams);
+        if(_maxNgrams > 1) {
+        	if(_minNgrams==1) {
+        		stream = new ShingleFilter(stream, _maxNgrams);
+        	
+        	}
+        	else {
+        		ShingleFilter sf = new ShingleFilter(stream, _minNgrams, _maxNgrams);
+        		sf.setOutputUnigrams(false);
+        		stream = sf;
+        	}
         }
         stream.reset();
         while(stream.incrementToken()) {

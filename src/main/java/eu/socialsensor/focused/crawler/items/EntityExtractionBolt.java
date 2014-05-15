@@ -1,7 +1,6 @@
 package eu.socialsensor.focused.crawler.items;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,27 +37,26 @@ public class EntityExtractionBolt extends BaseRichBolt {
 
 	private String _serializedClassifier;
 	private AbstractSequenceClassifier<CoreLabel> _classifier = null;
-	
-	
+			
 	public EntityExtractionBolt(String serializedClassifier) {
 		this._serializedClassifier = serializedClassifier;
 	}
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
-			OutputCollector collector) {
+			OutputCollector collector) {       
+		
 		this._collector = collector;
 		this._logger = Logger.getLogger(EntityExtractionBolt.class);
 	    
 	    try {
 			_classifier = CRFClassifier.getClassifier(_serializedClassifier);
-		} catch (ClassCastException e) {
+	    } catch (ClassCastException e) {
 			_logger.error(e);
 		} catch (ClassNotFoundException e) {
 			_logger.error(e);
 		} catch (IOException e) {
 			_logger.error(e);
-		}
-	    
+		}   
 	}
 
 	public void execute(Tuple input) {
@@ -74,7 +72,7 @@ public class EntityExtractionBolt extends BaseRichBolt {
 			}
 			_collector.emit(new Values(item));
 		}
-		catch(Exception e){
+		catch(Exception e) {
 			_logger.error(e);
 		}
 	}
@@ -118,32 +116,5 @@ public class EntityExtractionBolt extends BaseRichBolt {
             }
         }
     }
-	
-	public static void main(String[] args) throws Exception {
-		
-		File serializedClassifier = new File("english.all.3class.distsim.crf.ser.gz");
-		
-		EntityExtractionBolt bolt = new EntityExtractionBolt(serializedClassifier.toString());
-		bolt.prepare(null, null, null);
-		
-		String text = "The fate of Lehman Brothers, the beleaguered investment bank, hung in the balance on "
-				+ "Sunday as Federal Reserve officials and the leaders of major financial institutions "
-				+ "continued to gather in emergency meetings trying to complete a plan to rescue the stricken bank.  "
-				+ "Several possible plans emerged from the talks, held at the Federal Reserve Bank of New York "
-				+ "and led by Timothy R. Geithner, the president of the New York Fed, and Treasury Secretary Henry M. Paulson Jr."
-				+ " The fate of Lehman Brothers, the beleaguered investment bank, hung in the balance on "
-				+ "Sunday as Federal Reserve officials and the leaders of major financial institutions "
-				+ "continued to gather in emergency meetings trying to complete a plan to rescue the stricken bank.  "
-				+ "Several possible plans emerged from the talks, held at the Federal Reserve Bank of New York "
-				+ "and led by Timothy R. Geithner, the president of the New York Fed, and Treasury Secretary Henry M. Paulson Jr.";
-		
-		
-		List<Entity> entities = bolt.extract(text);
-		System.out.println(entities.size());
-		for(Entity e : entities) {
-			System.out.println(e.toJSONString());
-		}
-	}
-	
 	
 }

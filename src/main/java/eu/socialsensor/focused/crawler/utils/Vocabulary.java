@@ -18,38 +18,60 @@ public class Vocabulary {
 		voc.clear();
 	}
 	
+	public Set<String> getWords() {
+		Set<String> words = new HashSet<String>();
+		synchronized(voc) {
+			words.addAll(voc.keySet());
+		}
+		return words;
+	}
+	
+	public boolean hasWord(String word) {
+		synchronized(voc) {
+			return voc.containsKey(word);
+		}
+	}
+	
 	public void addWords(List<String> words) {
 		numOfDocs++;
 		for(String word : words) {
-			Long frequency = voc.get(word);
-			if(frequency == null)
-				frequency = 1L;
-			else
-				frequency += 1;
-			voc.put(word, frequency);	
+			synchronized(voc) {
+				Long frequency = voc.get(word);
+				if(frequency == null)
+					frequency = 1L;
+				else
+					frequency += 1;
+				voc.put(word, frequency);
+			}
 		}
 	}
 	
 	public double getDf(String word) {
-		Long df = voc.get(word);
-		if(df == null) {
-			return 0;
-		}
+		synchronized(voc) {
+			Long df = voc.get(word);
+			if(df == null) {
+				return 0;
+			}
 		
-		return (double)df / (double)numOfDocs;
+			return (double)df / (double)numOfDocs;
+		}
 	}
 	
 	public double getIdf(String word) {
-		Long df = voc.get(word);
-		if(df == null) {
-			return 0;
-		}
+		synchronized(voc) {
+			Long df = voc.get(word);
+			if(df == null) {
+				return 0;
+			}
 		
-		return Math.log10((double)numOfDocs / (double)df);
+			return Math.log10((double)numOfDocs / (double)df);
+		}
 	}
 
 	public int size() {
-		return voc.size();
+		synchronized(voc) {
+			return voc.size();
+		}
 	}
 	
 	public Map<String, Double> getShift(Vocabulary other) {
