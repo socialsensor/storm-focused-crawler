@@ -7,12 +7,12 @@ import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
 import eu.socialsensor.focused.crawler.bolts.media.ConceptDetectionBolt;
-import eu.socialsensor.focused.crawler.bolts.media.DeserializerMediaItemBolt;
+import eu.socialsensor.focused.crawler.bolts.media.MediaItemDeserializationBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaTextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.media.VisualIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
-import eu.socialsensor.focused.crawler.bolts.webpages.DeserializerWebPageBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.WebPageDeserializationBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.TextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.URLExpansionBolt;
@@ -154,8 +154,8 @@ public class SocialsensorCrawler {
 		//wpRanker = new RankerBolt(webPagesChannel);
 		//miRanker = new MediaRankerBolt(mediaItemsChannel);
 			
-		wpDeserializer = new DeserializerWebPageBolt(webPagesChannel);
-		miDeserializer = new DeserializerMediaItemBolt(mediaItemsChannel);
+		wpDeserializer = new WebPageDeserializationBolt(webPagesChannel);
+		miDeserializer = new MediaItemDeserializationBolt(mediaItemsChannel);
 		
 		// Web Pages Bolts
 		urlExpander = new URLExpansionBolt("webpages");

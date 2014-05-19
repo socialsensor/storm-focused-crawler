@@ -18,7 +18,7 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.utils.Utils;
 
-public class DeserializerMediaItemBolt extends BaseRichBolt {
+public class MediaItemDeserializationBolt extends BaseRichBolt {
 
 	/**
 	 * 
@@ -32,7 +32,7 @@ public class DeserializerMediaItemBolt extends BaseRichBolt {
 
 	private String inputField;
 
-	public DeserializerMediaItemBolt(String inputField) {
+	public MediaItemDeserializationBolt(String inputField) {
 		this.inputField = inputField;
 	}
 	
@@ -41,7 +41,7 @@ public class DeserializerMediaItemBolt extends BaseRichBolt {
 		this._collector = collector;
 		this._queue = new LinkedBlockingQueue<MediaItem>();
 		
-		logger = Logger.getLogger(DeserializerMediaItemBolt.class);
+		logger = Logger.getLogger(MediaItemDeserializationBolt.class);
 		
 		Thread[] threads = new Thread[4];
 		for(int i=0; i<4; i++) {

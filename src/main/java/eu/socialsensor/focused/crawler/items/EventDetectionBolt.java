@@ -1,10 +1,8 @@
 package eu.socialsensor.focused.crawler.items;
 
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
 import org.apache.log4j.Logger;
 
 import eu.socialsensor.focused.crawler.utils.Snapshots;
@@ -100,8 +98,7 @@ public class EventDetectionBolt extends BaseRichBolt {
 				
 				_logger.info("Vocabulary Snapshots: " + _vocabularySnapshots.size());
 				
-				// TODO: Detect Event Candidates
-				Set<String> CEs = new HashSet<String>();
+				Map<String, Double> CEs = new HashMap<String, Double>();
 				if(_vocabularySnapshots.size() >= _windows) {
 					for(String word : _currentVocabulary.getWords()) {
 						double currentIdf = _currentVocabulary.getIdf(word);
@@ -137,7 +134,7 @@ public class EventDetectionBolt extends BaseRichBolt {
 						}
 						
 						if(isCandidate) {
-							CEs.add(word);
+							CEs.put(word, currentIdf);
 						}
 					}
 				}
@@ -145,6 +142,7 @@ public class EventDetectionBolt extends BaseRichBolt {
 				_logger.info("Candidate events: " + CEs.size());
 				_logger.info("Candidate events: " + CEs);
 				_logger.info("=================================");
+				
 				_vocabularySnapshots.add(_currentVocabulary);
 				
 				if(idfShift != null)

@@ -1,5 +1,6 @@
 package eu.socialsensor.focused.crawler.utils;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -72,6 +73,18 @@ public class Vocabulary {
 		synchronized(voc) {
 			return voc.size();
 		}
+	}
+	
+	public double getAverage() {
+		Collection<String> words = voc.keySet();
+		
+		int n = words.size();
+		double avgIdf = 0;
+		for(String word : words) {
+			avgIdf += getIdf(word);
+		}
+		
+		return avgIdf/n;
 	}
 	
 	public Map<String, Double> getShift(Vocabulary other) {

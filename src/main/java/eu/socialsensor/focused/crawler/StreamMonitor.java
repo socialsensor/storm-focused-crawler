@@ -93,15 +93,15 @@ public class StreamMonitor {
 		IRichBolt entityExtractor, posTagger;
 		IRichBolt itemDeserializer, tokenizer, eventDetector;	
 		try {
-			itemsSpout = new RedisSpout(redisHost, itemsChannel, "id");
+			itemsSpout = new RedisSpout(redisHost, itemsChannel);
 			itemDeserializer = new ItemDeserializationBolt(itemsChannel);
 
 			entityExtractor = new EntityExtractionBolt(nerModel);
 			posTagger = new POSTaggingBolt(POSModel);
 			
-			tokenizer = new TokenizationBolt(2, 2);
+			tokenizer = new TokenizationBolt(TokenizationBolt.TokenType.NE);
 			
-			eventDetector = new EventDetectionBolt(5, 20);
+			eventDetector = new EventDetectionBolt(5, 60);
 			
 		} catch (Exception e) {
 			logger.error(e);
@@ -113,9 +113,9 @@ public class StreamMonitor {
 		builder.setSpout("itemsSpout", itemsSpout, 1);
 				
 		builder.setBolt("itemDeserializer", itemDeserializer, 4).shuffleGrouping("itemsSpout");
-		//builder.setBolt("entityExtractor", entityExtractor, 4).shuffleGrouping("itemDeserializer");
+		builder.setBolt("entityExtractor", entityExtractor, 4).shuffleGrouping("itemDeserializer");
 		//builder.setBolt("posTagger", posTagger, 4).shuffleGrouping("entityExtractor");
-		builder.setBolt("tokenizer", tokenizer, 4).shuffleGrouping("itemDeserializer");
+		builder.setBolt("tokenizer", tokenizer, 8).shuffleGrouping("entityExtractor");
 		
 		builder.setBolt("eventDetector", eventDetector, 1).shuffleGrouping("tokenizer");
 		

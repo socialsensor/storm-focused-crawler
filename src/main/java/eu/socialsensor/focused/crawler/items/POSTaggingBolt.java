@@ -48,7 +48,6 @@ public class POSTaggingBolt extends BaseRichBolt {
 		
 		String title = item.getTitle();
 		if(title != null) {
-			//String taggedTitle = _tagger.tagString(title);
 			List<TaggedWord> taggedSentences = tag(title);
 			_collector.emit(new Values(item, taggedSentences));
 		}
@@ -71,6 +70,7 @@ public class POSTaggingBolt extends BaseRichBolt {
 		return taggedSentences;
 	}
 	
+	/*
 	private List<List<TaggedWord>> tagSentences(String text) {
 		List<List<TaggedWord>> taggedSentences = new ArrayList<List<TaggedWord>>();
 		List<List<HasWord>> sentences = MaxentTagger.tokenizeText(new StringReader(text));
@@ -81,4 +81,6 @@ public class POSTaggingBolt extends BaseRichBolt {
 		
 		return taggedSentences;
 	}
+	*/
+	
 }

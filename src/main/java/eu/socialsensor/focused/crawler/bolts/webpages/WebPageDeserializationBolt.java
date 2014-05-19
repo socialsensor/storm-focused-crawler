@@ -18,7 +18,7 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.utils.Utils;
 
-public class DeserializerWebPageBolt extends BaseRichBolt {
+public class WebPageDeserializationBolt extends BaseRichBolt {
 
 	/**
 	 * 
@@ -32,7 +32,7 @@ public class DeserializerWebPageBolt extends BaseRichBolt {
 
 	private String inputField;
 
-	public DeserializerWebPageBolt(String inputField) {
+	public WebPageDeserializationBolt(String inputField) {
 		this.inputField = inputField;
 	}
 	
@@ -41,7 +41,7 @@ public class DeserializerWebPageBolt extends BaseRichBolt {
 		this._collector = collector;
 		this._queue = new LinkedBlockingQueue<WebPage>();
 		
-		logger = Logger.getLogger(DeserializerWebPageBolt.class);
+		logger = Logger.getLogger(WebPageDeserializationBolt.class);
 		
 		Thread[] threads = new Thread[4];
 		for(int i=0; i<4; i++) {

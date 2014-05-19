@@ -40,12 +40,17 @@ public class RedisSpout extends BaseRichSpout {
 	private LinkedBlockingQueue<String> queue;
 	private JedisPool pool;
 
-	private String idField;
+	private String uniqueField = null;
 
-	public RedisSpout(String host, String channel, String idField) {
+	public RedisSpout(String host, String channel) {
 		this.host = host;
 		this.channel = channel;
-		this.idField = idField;
+	}
+	
+	public RedisSpout(String host, String channel, String uniqueField) {
+		this.host = host;
+		this.channel = channel;
+		this.uniqueField = uniqueField;
 	}
 
 	class ListenerThread extends Thread {
@@ -70,16 +75,25 @@ public class RedisSpout extends BaseRichSpout {
 					totalMessages++;
 					
 					DBObject obj = (DBObject) JSON.parse(message);
-					String id = (String) obj.get(idField);
-					if(!ids.contains(id)) {
-						queue.offer(message);
-						ids.add(id);
-						if(ids.size() % 2000 == 0) {
-							logger.info(totalMessages + " messages received in total from " + channel + ". "  
+					
+					if(uniqueField != null) {
+						// Emit only unique messages based on uniqueField
+						String id = (String) obj.get(uniqueField);
+						if(!ids.contains(id)) {
+							queue.offer(message);
+							ids.add(id);
+							if(ids.size() % 2000 == 0) {
+								logger.info(totalMessages + " messages received in total from " + channel + ". "  
 									+ ids.size() + " unique. " 
 									+ queue.size() + " in redis spout queue.");
+							}
 						}
 					}
+					else {
+						// Emit all messages
+						queue.offer(message);
+					}
+					
 				}
 
 				@Override
