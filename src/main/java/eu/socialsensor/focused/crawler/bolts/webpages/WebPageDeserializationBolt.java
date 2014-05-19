@@ -3,9 +3,6 @@ package eu.socialsensor.focused.crawler.bolts.webpages;
 import static backtype.storm.utils.Utils.tuple;
 
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingQueue;
-
 import org.apache.log4j.Logger;
 
 import eu.socialsensor.framework.common.domain.WebPage;
@@ -16,7 +13,6 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
-import backtype.storm.utils.Utils;
 
 public class WebPageDeserializationBolt extends BaseRichBolt {
 
@@ -25,10 +21,10 @@ public class WebPageDeserializationBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = 1L;
 
-	private Logger logger;
+	private Logger _logger;
 	
 	private OutputCollector _collector;
-	private Queue<WebPage> _queue;
+	//private Queue<WebPage> _queue;
 
 	private String inputField;
 
@@ -39,15 +35,17 @@ public class WebPageDeserializationBolt extends BaseRichBolt {
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
 		this._collector = collector;
-		this._queue = new LinkedBlockingQueue<WebPage>();
+		//this._queue = new LinkedBlockingQueue<WebPage>();
 		
-		logger = Logger.getLogger(WebPageDeserializationBolt.class);
+		_logger = Logger.getLogger(WebPageDeserializationBolt.class);
 		
+		/*
 		Thread[] threads = new Thread[4];
 		for(int i=0; i<4; i++) {
 			threads[i] = new Thread(new DeserializerThread(_queue));
 			threads[i].start();
 		}
+		*/
 	}
 
 	public void execute(Tuple input) {
@@ -55,12 +53,10 @@ public class WebPageDeserializationBolt extends BaseRichBolt {
 			String json = input.getStringByField(inputField);
 			WebPage webPage = ItemFactory.createWebPage(json);
 			if(webPage != null) {
-				synchronized(_queue) {
-					_queue.offer(webPage);
-				}
+				_collector.emit(tuple(webPage));
 			}
 		} catch(Exception e) {
-				logger.error("Exception: "+e.getMessage());
+			_logger.error("Exception: "+e.getMessage());
 		}
 	}
 
@@ -68,6 +64,7 @@ public class WebPageDeserializationBolt extends BaseRichBolt {
 		declarer.declare(new Fields("webpages"));
 	}
 
+	/*
 	class DeserializerThread extends Thread {
 
 		Queue<WebPage> queue;
@@ -98,5 +95,5 @@ public class WebPageDeserializationBolt extends BaseRichBolt {
 			}
 		};
 	}
-
+	*/
 }

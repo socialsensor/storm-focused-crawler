@@ -3,9 +3,6 @@ package eu.socialsensor.focused.crawler.bolts.media;
 import static backtype.storm.utils.Utils.tuple;
 
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingQueue;
-
 import org.apache.log4j.Logger;
 
 import eu.socialsensor.framework.common.domain.MediaItem;
@@ -16,7 +13,6 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
-import backtype.storm.utils.Utils;
 
 public class MediaItemDeserializationBolt extends BaseRichBolt {
 
@@ -25,10 +21,10 @@ public class MediaItemDeserializationBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = 1L;
 
-	private Logger logger;
+	private Logger _logger;
 	
 	private OutputCollector _collector;
-	private Queue<MediaItem> _queue;
+	//private Queue<MediaItem> _queue;
 
 	private String inputField;
 
@@ -38,16 +34,18 @@ public class MediaItemDeserializationBolt extends BaseRichBolt {
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
-		this._collector = collector;
-		this._queue = new LinkedBlockingQueue<MediaItem>();
+		_collector = collector;
+		//_queue = new LinkedBlockingQueue<MediaItem>();
 		
-		logger = Logger.getLogger(MediaItemDeserializationBolt.class);
+		_logger = Logger.getLogger(MediaItemDeserializationBolt.class);
 		
+		/*
 		Thread[] threads = new Thread[4];
 		for(int i=0; i<4; i++) {
 			threads[i] = new Thread(new DeserializerThread(_queue));
 			threads[i].start();
 		}
+		*/
 	}
 
 	public void execute(Tuple input) {
@@ -55,12 +53,10 @@ public class MediaItemDeserializationBolt extends BaseRichBolt {
 			String json = input.getStringByField(inputField);
 			MediaItem mediaItem = ItemFactory.createMediaItem(json);
 			if(mediaItem != null) {
-				synchronized(_queue) {
-					_queue.offer(mediaItem);
-				}
+				_collector.emit(tuple(mediaItem));
 			}
 		} catch(Exception e) {
-				logger.error("Exception: "+e.getMessage());
+				_logger.error("Exception: "+e.getMessage());
 		}
 	}
 
@@ -68,6 +64,7 @@ public class MediaItemDeserializationBolt extends BaseRichBolt {
 		declarer.declare(new Fields("MediaItem"));
 	}
 
+	/*
 	class DeserializerThread extends Thread {
 
 		Queue<MediaItem> queue;
@@ -98,5 +95,6 @@ public class MediaItemDeserializationBolt extends BaseRichBolt {
 			}
 		};
 	}
-
+	*/
+	
 }

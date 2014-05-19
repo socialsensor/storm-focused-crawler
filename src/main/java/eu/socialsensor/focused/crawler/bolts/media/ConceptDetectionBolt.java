@@ -87,7 +87,9 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 			MediaItem mediaItem = (MediaItem) input.getValueByField("MediaItem");
 			
 			if(imgVec == null) {
-				_collector.emit(tuple(mediaItem));
+				synchronized(_collector) {
+					_collector.emit(tuple(mediaItem));
+				}
 			}
 			else {
 				queue.put(Pair.of(imgVec, mediaItem));
@@ -184,7 +186,10 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 							MediaItem mediaItem = mediaItemsMap.remove(mediaId);
 							if(mediaItem != null) {
 								mediaItem.addConcept(concept);
-								_collector.emit(tuple(mediaItem));
+								
+								synchronized(_collector) {
+									_collector.emit(tuple(mediaItem));
+								}
 							}
 						}
 						catch(Exception e) {

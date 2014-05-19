@@ -25,9 +25,9 @@ public class TextIndexerBolt extends BaseRichBolt {
 	private Logger logger;
 	
 	private String _indexService;
-	private SolrWebPageHandler solrWebPageHandler = null;
+	private SolrWebPageHandler _solrWebPageHandler = null;
 	
-	private ArrayBlockingQueue<WebPage> queue;
+	private ArrayBlockingQueue<WebPage> _queue;
 	
 	public TextIndexerBolt(String indexService) {
 		this._indexService = indexService;
@@ -40,8 +40,8 @@ public class TextIndexerBolt extends BaseRichBolt {
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, OutputCollector collector) {
 		logger = Logger.getLogger(TextIndexerBolt.class);
 		
-		queue = new ArrayBlockingQueue<WebPage>(10000);
-		solrWebPageHandler = SolrWebPageHandler.getInstance(_indexService);
+		_queue = new ArrayBlockingQueue<WebPage>(10000);
+		_solrWebPageHandler = SolrWebPageHandler.getInstance(_indexService);
 		
 		Thread t = new Thread(new TextIndexer());
 		t.start();
@@ -51,8 +51,8 @@ public class TextIndexerBolt extends BaseRichBolt {
 		try {
 			WebPage webPage = (WebPage) tuple.getValueByField("WebPage");
 			
-			if(webPage != null && solrWebPageHandler != null) {
-				queue.add(webPage);
+			if(webPage != null && _solrWebPageHandler != null) {
+				_queue.add(webPage);
 			}
 		}
 		catch(Exception ex) {
@@ -69,9 +69,9 @@ public class TextIndexerBolt extends BaseRichBolt {
 					Thread.sleep(10 * 1000);
 
 					List<WebPage> webPages = new ArrayList<WebPage>();
-					queue.drainTo(webPages);
+					_queue.drainTo(webPages);
 					
-					boolean inserted = solrWebPageHandler.insertWebPages(webPages);
+					boolean inserted = _solrWebPageHandler.insertWebPages(webPages);
 					
 					if(inserted) {
 						logger.info(webPages.size() + " web pages indexed in Solr");

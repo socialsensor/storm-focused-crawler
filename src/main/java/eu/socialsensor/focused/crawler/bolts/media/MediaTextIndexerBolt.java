@@ -27,7 +27,7 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 	
 	private String service;
 
-	private SolrMediaItemHandler solrMediaHandler;
+	private SolrMediaItemHandler _solrMediaHandler;
 
 	private ArrayBlockingQueue<MediaItem> queue;
 	
@@ -45,10 +45,10 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 		
 		queue = new ArrayBlockingQueue<MediaItem>(5000);
 		try {
-			solrMediaHandler = SolrMediaItemHandler.getInstance(service);
+			_solrMediaHandler = SolrMediaItemHandler.getInstance(service);
 		} catch (Exception e) {
 			e.printStackTrace();
-			solrMediaHandler = null;
+			_solrMediaHandler = null;
 			logger.error(e);
 		}
 		
@@ -61,7 +61,7 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 		try {
 			MediaItem mediaItem = (MediaItem) tuple.getValueByField("MediaItem");
 		
-			if(mediaItem == null || solrMediaHandler == null)
+			if(mediaItem == null || _solrMediaHandler == null)
 				return;
 			
 			queue.add(mediaItem);
@@ -87,7 +87,7 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 					if(mItems.isEmpty())
 						continue;
 					
-					boolean inserted = solrMediaHandler.insertMediaItems(mItems);
+					boolean inserted = _solrMediaHandler.insertMediaItems(mItems);
 					
 					if(inserted) {
 						logger.info(mItems.size() + " media items indexed in Solr.");

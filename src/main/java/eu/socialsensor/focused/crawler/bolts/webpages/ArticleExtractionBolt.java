@@ -153,29 +153,29 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	
 	private static class Emitter implements Runnable {
 
-		private OutputCollector collector;
-		private BlockingQueue<Object> tupleQueue;
+		private OutputCollector _collector;
+		private BlockingQueue<Object> _tupleQueue;
 		
-		public Emitter(OutputCollector _collector, BlockingQueue<Object> _tupleQueue) {
-			this.collector = _collector;
-			this.tupleQueue = _tupleQueue;
+		public Emitter(OutputCollector collector, BlockingQueue<Object> tupleQueue) {
+			_collector = collector;
+			_tupleQueue = tupleQueue;
 		}
 		
 		public void run() {
 			while(true) {
-				Object obj = tupleQueue.poll();
+				Object obj = _tupleQueue.poll();
 				if(obj != null) {
-					synchronized(collector) {
+					synchronized(_collector) {
 						if(MediaItem.class.isInstance(obj)) {
-							collector.emit(MEDIA_STREAM, tuple(obj));
+							_collector.emit(MEDIA_STREAM, tuple(obj));
 						}
 						else if(WebPage.class.isInstance(obj)) {
-							collector.emit(WEBPAGE_STREAM, tuple(obj));
+							_collector.emit(WEBPAGE_STREAM, tuple(obj));
 						}
 					}
 				}
 				else {
-					Utils.sleep(200);
+					Utils.sleep(100);
 				}
 			}
 		}

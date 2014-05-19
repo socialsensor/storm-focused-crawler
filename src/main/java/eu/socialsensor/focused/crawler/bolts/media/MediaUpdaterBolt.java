@@ -29,13 +29,13 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
-	Logger logger;
+	private Logger _logger;
 	
-	private String mongodbHostname;
-	private String mediaItemsDB;
-	private String mediaItemsCollection;
-	private String streamUsersDB;
-	private String streamUsersCollection;
+	private String _mongodbHostname;
+	private String _mediaItemsDB;
+	private String _mediaItemsCollection;
+	private String _streamUsersDB;
+	private String _streamUsersCollection;
 	
 	private MediaItemDAO _mediaItemDAO;
 	private StreamUserDAO _streamUsersDAO;
@@ -47,12 +47,12 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	public MediaUpdaterBolt(String mongodbHostname, String mediaItemsDB, String mediaItemsCollection, 
 			String streamUsersDB, String streamUsersCollection) {
 		
-		this.mongodbHostname = mongodbHostname;
-		this.mediaItemsDB = mediaItemsDB;
-		this.mediaItemsCollection = mediaItemsCollection;
+		_mongodbHostname = mongodbHostname;
+		_mediaItemsDB = mediaItemsDB;
+		_mediaItemsCollection = mediaItemsCollection;
 		
-		this.streamUsersDB = streamUsersDB;
-		this.streamUsersCollection = streamUsersCollection;
+		_streamUsersDB = streamUsersDB;
+		_streamUsersCollection = streamUsersCollection;
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -62,13 +62,13 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
 			OutputCollector collector) {
 		
-		logger = Logger.getLogger(MediaUpdaterBolt.class);
+		_logger = Logger.getLogger(MediaUpdaterBolt.class);
 		try {
-			_mediaItemDAO = new MediaItemDAOImpl(mongodbHostname, mediaItemsDB, mediaItemsCollection);
-			_streamUsersDAO = new StreamUserDAOImpl(mongodbHostname, streamUsersDB, streamUsersCollection);
+			_mediaItemDAO = new MediaItemDAOImpl(_mongodbHostname, _mediaItemsDB, _mediaItemsCollection);
+			_streamUsersDAO = new StreamUserDAOImpl(_mongodbHostname, _streamUsersDB, _streamUsersCollection);
 			_collector = collector;
 		} catch (Exception e) {
-			logger.error(e);
+			_logger.error(e);
 		}
 		
 	}
@@ -80,7 +80,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 			try {
 				
 			if(++received%1000==0) {
-				logger.info(received + " media items received. " + newMedia + " are new and "
+				_logger.info(received + " media items received. " + newMedia + " are new and "
 						+ existedMedia + " already exists!");
 			}
 				
@@ -127,7 +127,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 				}
 			}
 			catch(Exception e) {
-				logger.error(e);
+				_logger.error(e);
 			}
 		}
 	}   
