@@ -63,7 +63,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	private static String MEDIA_STREAM = "media";
 	private static String WEBPAGE_STREAM = "webpage";
 	
-	private Logger logger;
+	private Logger _logger;
 	
 	private OutputCollector _collector;
 	private HttpClient _httpclient;
@@ -84,6 +84,11 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	private BlockingQueue<Object> _tupleQueue;
 
 	private RequestConfig _requestConfig;
+
+	private long receivedTuples = 0;
+	
+	private Thread _emitter;
+	private List<Thread> _fetchers;
 	
 	public ArticleExtractionBolt() {
 
@@ -101,7 +106,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
 			OutputCollector collector) {
 		
-		logger = Logger.getLogger(ArticleExtractionBolt.class);
+		_logger = Logger.getLogger(ArticleExtractionBolt.class);
 		
 		_collector = collector;
 		
@@ -126,35 +131,42 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	    _extractor = CommonExtractors.ARTICLE_EXTRACTOR;
 	    // The use of Canola extractor increases recall of the returned media items but decreases precision.
 	    //_extractor = CommonExtractors.CANOLA_EXTRACTOR;
+	    
 	    _imageExtractor = ImageExtractor.INSTANCE;
+	    
 	    // Quality estimator of the article extraction process
 	    _estimator = SimpleEstimator.INSTANCE;	
 	    
-	    Thread emitter = new Thread(new Emitter(_collector, _tupleQueue));
-	    emitter.start();
+	    _emitter = new Thread(new Emitter(_collector, _tupleQueue));
+	    _emitter.start();
 	    
-	    Thread[] fetchers = new Thread[numOfFetchers];
+	    _fetchers = new ArrayList<Thread>(numOfFetchers);
 	    for(int i=0;i<numOfFetchers; i++) {
-	    	fetchers[i] = new Thread(new HttpFetcher(_queue));
-	    	fetchers[i].start();
+	    	Thread fetcher = new Thread(new HttpFetcher(_queue));
+	    	fetcher.start();
+	    	
+	    	_fetchers.add(fetcher);
 	    }
 	}
 
 	public void execute(Tuple tuple) {
+		receivedTuples++;
 		WebPage webPage = (WebPage) tuple.getValueByField("webPage");
 		try {
 			if(webPage != null) {
 				_queue.put(webPage);
 			}
 		} catch (InterruptedException e) {
-			logger.error(e);
+			_logger.error(e);
 		}
 	}   
 	
-	private static class Emitter implements Runnable {
+	private class Emitter implements Runnable {
 
 		private OutputCollector _collector;
 		private BlockingQueue<Object> _tupleQueue;
+		
+		private int mediaTuples = 0, webPagesTuples = 0;
 		
 		public Emitter(OutputCollector collector, BlockingQueue<Object> tupleQueue) {
 			_collector = collector;
@@ -167,18 +179,35 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				if(obj != null) {
 					synchronized(_collector) {
 						if(MediaItem.class.isInstance(obj)) {
+							mediaTuples++;
 							_collector.emit(MEDIA_STREAM, tuple(obj));
 						}
 						else if(WebPage.class.isInstance(obj)) {
+							webPagesTuples++;
 							_collector.emit(WEBPAGE_STREAM, tuple(obj));
 						}
 					}
 				}
 				else {
-					Utils.sleep(100);
+					Utils.sleep(500);
+				}
+				
+				if(mediaTuples%100==0 || webPagesTuples%100==0) {
+					_logger.info(receivedTuples + " tuples received, " + mediaTuples + " media tuples emmited, " + 
+							webPagesTuples + " web page tuples emmited");
+					_logger.info(getWorkingFetchers() + " fetchers workings out of " + numOfFetchers);
 				}
 			}
 		}
+	}
+	
+	private int getWorkingFetchers() {
+		int working = 0;
+		for(Thread fetcher : _fetchers) {
+			if(fetcher.isAlive())
+				working++;
+		}
+		return working;
 	}
 	
 	private class HttpFetcher implements Runnable {
@@ -196,7 +225,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				try {
 					webPage = queue.take();
 				} catch (Exception e) {
-					logger.error(e);
+					_logger.error(e);
 					continue;
 				}
 				
@@ -220,7 +249,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					ContentType contentType = ContentType.get(entity);
 	
 					if(!contentType.getMimeType().equals(ContentType.TEXT_HTML.getMimeType())) {
-						logger.error("URL: " + webPage.getExpandedUrl() + 
+						_logger.error("URL: " + webPage.getExpandedUrl() + 
 								"   Not supported mime type: " + contentType.getMimeType());
 						
 						webPage.setStatus(FAILED);
@@ -242,13 +271,12 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 						}
 					}
 					else {
-						logger.error("Parsing of " + expandedUrl + " failed.");
+						_logger.error("Parsing of " + expandedUrl + " failed.");
 						webPage.setStatus(FAILED);
 						_tupleQueue.add(webPage);
 					}
-					
 				} catch (Exception e) {
-					logger.error("for " + expandedUrl, e);
+					_logger.error("for " + expandedUrl, e);
 					webPage.setStatus(FAILED);
 					_tupleQueue.add(webPage);
 				}
@@ -311,7 +339,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			return true;
 			
 	  	} catch(Exception ex) {
-	  		logger.error(ex);
+	  		_logger.error(ex);
 	  		return false;
 	  	}
 	}
@@ -357,7 +385,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 			return article;
 			
 	  	} catch(Exception ex) {
-	  		logger.error(ex);
+	  		_logger.error(ex);
 	  		return null;
 	  	}
 	}
@@ -404,7 +432,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					continue;
 				
 			} catch (Exception e) {
-				logger.error("Error for " + src + " in " + base, e);
+				_logger.error("Error for " + src + " in " + base, e);
 				continue;
 			}
 			
@@ -472,7 +500,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
   					continue;
   			}
   			catch(Exception e) {
-  				logger.error(e);
+  				_logger.error(e);
   			}
 
 			URL url = null;
@@ -486,7 +514,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					continue;
 				
 			} catch (Exception e) {
-				logger.error(e);
+				_logger.error(e);
 				continue;
 			}
 			
@@ -562,7 +590,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				}
 			}
 		} catch (Exception e) {
-			logger.error(e);
+			_logger.error(e);
 		}
 		
 		return videos;

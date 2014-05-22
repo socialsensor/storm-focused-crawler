@@ -130,15 +130,16 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 					break;
 				}
 				
-				// Concept Detector needs 100 media items at least
-				if(queue.size() < 100)  {
-					_logger.info("Queue size is less than 100 images. Let's wait some more time.");
+				// Concept Detector needs 50 media items at least
+				int n = queue.size();
+				if(n < 50)  {
+					_logger.info("Queue size is less than 50 images(" + n + "). Wait some more time.");
 					continue;
 				}
 				
 				List<Pair<ImageVector, MediaItem>> mediaPairs = new ArrayList<Pair<ImageVector, MediaItem>>();
 				synchronized(queue) {
-					queue.drainTo(mediaPairs, 1500);
+					queue.drainTo(mediaPairs, 1000);
 				}
 				
 				if(mediaPairs.isEmpty()) {
