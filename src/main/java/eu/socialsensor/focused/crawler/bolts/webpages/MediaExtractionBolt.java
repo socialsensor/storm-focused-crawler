@@ -52,12 +52,12 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	private static String youtubeClientId = "manosetro";
 	private static String youtubeDevKey = "AI39si6DMfJRhrIFvJRv0qFubHHQypIwjkD-W7tsjLJArVKn9iR-QoT8t-UijtITl4TuyHzK-cxqDDCkCBoJB-seakq1gbt1iQ";
 
-	private static Pattern instagramPattern 	= 	Pattern.compile("http://instagram.com/p/([\\w\\-]+)/");
-	private static Pattern youtubePattern 		= 	Pattern.compile("http.*://www.youtube.com/watch?.*v=([a-zA-Z0-9_\\-]+)(&.+=.+)*");
-	private static Pattern vimeoPattern 		= 	Pattern.compile("http://vimeo.com/([0-9]+)/*$");
-	private static Pattern twitpicPattern 		= 	Pattern.compile("http://twitpic.com/([A-Za-z0-9]+)/*.*$");
-	private static Pattern dailymotionPattern 	= 	Pattern.compile("http://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
-	private static Pattern facebookPattern 		= 	Pattern.compile("http.*://www.facebook.com/photo.php?.*fbid=([a-zA-Z0-9_\\-]+)(&.+=.+)*");
+	private static Pattern instagramPattern 	= 	Pattern.compile("https*://instagram.com/p/([\\w\\-]+)/");
+	private static Pattern youtubePattern 		= 	Pattern.compile("https*://www.youtube.com/watch?.*v=([a-zA-Z0-9_\\-]+)(&.+=.+)*");
+	private static Pattern vimeoPattern 		= 	Pattern.compile("https*://vimeo.com/([0-9]+)/*$");
+	private static Pattern twitpicPattern 		= 	Pattern.compile("https*://twitpic.com/([A-Za-z0-9]+)/*.*$");
+	private static Pattern dailymotionPattern 	= 	Pattern.compile("https*://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
+	private static Pattern facebookPattern 		= 	Pattern.compile("https*://www.facebook.com/photo.php?.*fbid=([a-zA-Z0-9_\\-]+)(&.+=.+)*");
 	
 	private Map<String, SocialMediaRetriever> retrievers = new HashMap<String, SocialMediaRetriever>();
 	
