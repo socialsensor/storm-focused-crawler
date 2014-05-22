@@ -49,12 +49,8 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.utils.Utils;
 
-
 public class ArticleExtractionBolt extends BaseRichBolt {
 
-    /**
-	 * 
-	 */
 	private static final long serialVersionUID = -2548434425109192911L;
 	
 	private static final String SUCCESS = "success";
@@ -195,7 +191,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				if(mediaTuples%100==0 || webPagesTuples%100==0) {
 					_logger.info(receivedTuples + " tuples received, " + mediaTuples + " media tuples emmited, " + 
 							webPagesTuples + " web page tuples emmited");
-					_logger.info(getWorkingFetchers() + " fetchers workings out of " + numOfFetchers);
+					_logger.info(getWorkingFetchers() + " fetchers out of " + numOfFetchers + " are working.");
 				}
 			}
 		}
@@ -234,8 +230,16 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				}
 				
 				String expandedUrl = webPage.getExpandedUrl();
+				if(expandedUrl==null || expandedUrl.length()>300) {
+					webPage.setStatus(FAILED);
+					_tupleQueue.add(webPage);
+					
+					continue;
+				}
+				
 				HttpGet httpget = null;
 				try {
+					
 					URI uri = new URI(expandedUrl
 							.replaceAll(" ", "%20")
 							.replaceAll("\\|", "%7C")

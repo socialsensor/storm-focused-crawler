@@ -68,6 +68,7 @@ public class WebPagesUpdaterBolt extends BaseRichBolt {
 				return;
 				
 			if(_webPageDAO.exists(webPage.getUrl())) {
+				existedWP++;
 				
 				// Update existing web page
 				UpdateItem o = new UpdateItem();
@@ -81,6 +82,7 @@ public class WebPagesUpdaterBolt extends BaseRichBolt {
 				_webPageDAO.updateWebPage(webPage.getUrl(), o);
 			}
 			else {
+				newWP++;
 				// Insert new web page (this should never happen in production)
 				_webPageDAO.addWebPage(webPage);
 			}
