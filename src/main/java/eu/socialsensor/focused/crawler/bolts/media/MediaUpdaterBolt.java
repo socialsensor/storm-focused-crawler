@@ -112,10 +112,6 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 				}
 				else {
 					newMedia++;
-					
-					// Emit for indexing 
-					_collector.emit(tuple(mediaItem));
-					
 					_mediaItemDAO.addMediaItem(mediaItem);
 					
 					StreamUser user = mediaItem.getUser();
@@ -125,6 +121,10 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 						}
 					}
 				}
+				
+				// Emit for indexing 
+				_collector.emit(tuple(mediaItem));
+				
 			}
 			catch(Exception e) {
 				_logger.error(e);
