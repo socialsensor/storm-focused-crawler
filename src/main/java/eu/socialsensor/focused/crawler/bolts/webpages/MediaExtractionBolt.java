@@ -183,7 +183,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 					throw new Exception("Missing " + mediaItem.getStreamId() + " user: " + userid);
 				}
 				mediaItem.setUser(streamUser);
-				mediaItem.setUserId(streamUser.getUserid());
+				mediaItem.setUserId(streamUser.getId());
 			}
 			
 			return mediaItem;
