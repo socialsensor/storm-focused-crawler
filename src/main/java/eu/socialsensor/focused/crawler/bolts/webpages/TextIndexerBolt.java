@@ -71,6 +71,11 @@ public class TextIndexerBolt extends BaseRichBolt {
 					List<WebPage> webPages = new ArrayList<WebPage>();
 					_queue.drainTo(webPages);
 					
+					if(webPages.isEmpty()) {
+						logger.info("There are no web pages to index. Wait some more time.");
+						continue;
+					}
+					
 					boolean inserted = _solrWebPageHandler.insertWebPages(webPages);
 					
 					if(inserted) {
