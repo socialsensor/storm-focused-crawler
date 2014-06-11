@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -132,8 +133,8 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 				
 				// Concept Detector needs 50 media items at least
 				int n = queue.size();
-				if(n < 50)  {
-					_logger.info("Queue size is less than 50 images(" + n + "). Wait some more time.");
+				if(n < 100)  {
+					_logger.info("Queue size is less than 100 images(" + n + "). Wait some more time.");
 					continue;
 				}
 				
@@ -151,7 +152,9 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 					_logger.info(queue.size() + " tuples remain to queue.");
 				}
 				
+				long t0 = System.currentTimeMillis();
 				try {
+					
 					Map<String, MediaItem> mediaItemsMap = new HashMap<String, MediaItem>();
 					String[]   mediaIds = new String[mediaPairs.size()];
 					double[][] descriptors = new double[mediaPairs.size()][];
@@ -170,6 +173,7 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 					double[][] concepts = _detector.detect(descriptors);
 					_logger.info("Done!");
 					
+					Map<String, Integer> temp = new HashMap<String, Integer>();
 					for(int i=0; i<mediaIds.length; i++) {
 						try {
 							String mediaId = mediaIds[i];
@@ -182,10 +186,17 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 							}
 							
 							ConceptType conceptType = null;
-							if(conceptIndex==2 || conceptIndex==3 || conceptIndex==4)
+							if(conceptIndex==2 || conceptIndex==3 || conceptIndex==4) {
 								conceptType = ConceptType.heavytext;
-							else
+							}
+							else {
 								conceptType = conceptValues[conceptIndex-1];	
+							}
+							
+							Integer f = temp.get(conceptType.toString());
+							if(f == null)
+								f = 0;
+							temp.put(conceptType.toString(), ++f);
 							
 							Concept concept = new Concept(conceptType, score);
 							MediaItem mediaItem = mediaItemsMap.remove(mediaId);
@@ -203,10 +214,19 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 						}
 					}
 					mediaItemsMap.clear();
+					
+					_logger.info("Concepts frequencies: ");
+					for(Entry<String, Integer> e : temp.entrySet())
+						_logger.info(e.getKey() + " => " + e.getValue());
+					
 				} catch (Exception e) {
 					e.printStackTrace();
 					_logger.error(e);
 				}	
+				
+				t0 = System.currentTimeMillis() - t0;
+				_logger.info("Concept detection ran in " + t0 + " seconds!");
+				
 			}	
 		}
 	}
