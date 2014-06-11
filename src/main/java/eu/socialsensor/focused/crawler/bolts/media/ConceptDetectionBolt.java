@@ -176,13 +176,17 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 							int conceptIndex = (int) concepts[i][0];
 							double score = concepts[i][1];
 							
-							if(conceptIndex<1 || conceptIndex>9) {
+							if(conceptIndex<1 || conceptIndex>7) {
 								_logger.error("Condept Index (" + conceptIndex + ") out of bounds for " + mediaId);
 								continue;
 							}
 							
-							ConceptType conceptType = conceptValues[conceptIndex-1];
-						
+							ConceptType conceptType = null;
+							if(conceptIndex==2 || conceptIndex==3 || conceptIndex==4)
+								conceptType = ConceptType.heavytext;
+							else
+								conceptType = conceptValues[conceptIndex-1];	
+							
 							Concept concept = new Concept(conceptType, score);
 							MediaItem mediaItem = mediaItemsMap.remove(mediaId);
 							if(mediaItem != null) {
