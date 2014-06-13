@@ -6,6 +6,7 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
+import eu.socialsensor.focused.crawler.bolts.media.ClustererBolt;
 import eu.socialsensor.focused.crawler.bolts.media.ConceptDetectionBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaItemDeserializationBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaTextIndexerBolt;
@@ -146,7 +147,7 @@ public class SocialsensorCrawler {
 		IRichBolt wpDeserializer, miDeserializer;
 		IRichBolt urlExpander, articleExtraction, mediaExtraction;
 		IRichBolt mediaUpdater, webPageUpdater, textIndexer;
-		IRichBolt visualIndexer, mediaTextIndexer, conceptDetector;
+		IRichBolt visualIndexer, mediaTextIndexer, conceptDetector, clusterer;
 		
 		wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
 		miSpout = new RedisSpout(redisHost, mediaItemsChannel, "id");
@@ -166,7 +167,7 @@ public class SocialsensorCrawler {
 			
 		// Media Items Bolts
 		visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
-		//clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection);
+		clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, visualIndexHostname, visualIndexCollection);
 		conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
 		mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
 		mediaTextIndexer = new MediaTextIndexerBolt(mediaTextIndexService);
@@ -200,7 +201,7 @@ public class SocialsensorCrawler {
 			.shuffleGrouping("mediaExtraction", "media");
         
         builder.setBolt("conceptDetector", conceptDetector, 1).shuffleGrouping("indexer");
-        //builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
+        builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
         builder.setBolt("mediaupdater", mediaUpdater, 1).shuffleGrouping("conceptDetector");
 		builder.setBolt("mediaTextIndexer", mediaTextIndexer, 1).shuffleGrouping("mediaupdater");
 		

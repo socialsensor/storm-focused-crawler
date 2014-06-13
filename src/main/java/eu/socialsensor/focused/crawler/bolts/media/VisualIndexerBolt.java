@@ -141,7 +141,6 @@ public class VisualIndexerBolt extends BaseRichBolt {
 			InputStream input = entity.getContent();
 			byte[] imageContent = IOUtils.toByteArray(input);
 			
-			//byte[] imageContent = IOUtils.toByteArray(new URL(url.replaceAll(" ", "%20")));
 			BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageContent));
 			
 			boolean indexed = false;
@@ -162,6 +161,7 @@ public class VisualIndexerBolt extends BaseRichBolt {
 				
 				imageVector = new ImageVector(id, url, vector);
 				indexed = _visualIndex.index(id, vector);
+				
 			}
 			
 			if(!indexed) {
