@@ -188,7 +188,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					Utils.sleep(500);
 				}
 				
-				if(mediaTuples%100==0 || webPagesTuples%100==0) {
+				if((mediaTuples%100==0 || webPagesTuples%100==0) && (mediaTuples!=0 || webPagesTuples!=0)) {
 					_logger.info(receivedTuples + " tuples received, " + mediaTuples + " media tuples emmited, " + 
 							webPagesTuples + " web page tuples emmited");
 					_logger.info(getWorkingFetchers() + " fetchers out of " + numOfFetchers + " are working.");
