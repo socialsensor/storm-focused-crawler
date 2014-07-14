@@ -24,7 +24,6 @@ public class WebPageDeserializationBolt extends BaseRichBolt {
 	private Logger _logger;
 	
 	private OutputCollector _collector;
-	//private Queue<WebPage> _queue;
 
 	private String inputField;
 
@@ -34,18 +33,9 @@ public class WebPageDeserializationBolt extends BaseRichBolt {
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
-		this._collector = collector;
-		//this._queue = new LinkedBlockingQueue<WebPage>();
-		
+		this._collector = collector;	
 		_logger = Logger.getLogger(WebPageDeserializationBolt.class);
-		
-		/*
-		Thread[] threads = new Thread[4];
-		for(int i=0; i<4; i++) {
-			threads[i] = new Thread(new DeserializerThread(_queue));
-			threads[i].start();
-		}
-		*/
+
 	}
 
 	public void execute(Tuple input) {
@@ -61,39 +51,7 @@ public class WebPageDeserializationBolt extends BaseRichBolt {
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields("webpages"));
+		declarer.declare(new Fields(inputField));
 	}
 
-	/*
-	class DeserializerThread extends Thread {
-
-		Queue<WebPage> queue;
-		
-		public DeserializerThread(Queue<WebPage> queue) {	
-			this.queue = queue;
-		}
-
-		public void run() {
-			while(true) {
-				try {
-					WebPage webPage = null;
-					synchronized(_queue) {
-						webPage = queue.poll();
-					}
-					
-					if(webPage == null) {
-						Utils.sleep(500);
-					}
-					else {
-						_collector.emit(tuple(webPage));
-					}
-				}
-				catch(Exception e) {
-					Utils.sleep(500);
-					continue;
-				}
-			}
-		};
-	}
-	*/
 }

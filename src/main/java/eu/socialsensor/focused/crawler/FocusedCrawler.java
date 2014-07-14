@@ -10,11 +10,12 @@ import eu.socialsensor.focused.crawler.bolts.media.MediaTextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.ArticleExtractionBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.MediaExtractionBolt;
-import eu.socialsensor.focused.crawler.bolts.webpages.RankerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.TextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.URLExpansionBolt;
+import eu.socialsensor.focused.crawler.bolts.webpages.WebPageDeserializationBolt;
 import eu.socialsensor.focused.crawler.bolts.webpages.WebPagesUpdaterBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
+
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
@@ -26,9 +27,7 @@ import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.topology.base.BaseRichSpout;
 
 public class FocusedCrawler {
-
 	private static Logger logger = Logger.getLogger(FocusedCrawler.class);
-	
 	
 	/**
 	 *	@author Manos Schinas - manosetro@iti.gr
@@ -110,18 +109,18 @@ public class FocusedCrawler {
 		String webPagesCollection = config.getString("mongodb.webPagesCollection", "WebPages");
 		
 		String textIndexHostname = config.getString("textindex.hostname", "xxx.xxx.xxx.xxx:8080/solr");
-		String textIndexCollection = config.getString("textindex.collections/webpages", "WebPages");
-		String mediaIndexCollection = config.getString("textindex.collections/webpages", "MediaItems");
+		String textIndexCollection = config.getString("textindex.collections.webpages", "WebPages");
+		String mediaIndexCollection = config.getString("textindex.collections.media", "MediaItems");
 		String textIndexService = textIndexHostname + "/" + textIndexCollection;
 		String mediaTextIndexService = textIndexHostname + "/" + mediaIndexCollection;
 		
 		BaseRichSpout wpSpout;
-		IRichBolt wpRanker, mediaUpdater, urlExpander, mediaTextIndexer;
+		IRichBolt wpDeserializer, mediaUpdater, urlExpander, mediaTextIndexer;
 		IRichBolt articleExtraction, mediaExtraction, webPageUpdater, textIndexer;
 		
 		try {
 			wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
-			wpRanker = new RankerBolt(webPagesChannel);
+			wpDeserializer = new WebPageDeserializationBolt(webPagesChannel);
 			urlExpander = new URLExpansionBolt(webPagesChannel);
 			
 			articleExtraction = new ArticleExtractionBolt(24);
@@ -140,8 +139,8 @@ public class FocusedCrawler {
 		TopologyBuilder builder = new TopologyBuilder();
 		builder.setSpout("wpSpout", wpSpout, 1);
 				
-		builder.setBolt("wpRanker", wpRanker, 4).shuffleGrouping("wpSpout");
-		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpRanker");
+		builder.setBolt("WpDeserializer", wpDeserializer, 4).shuffleGrouping("wpSpout");
+		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("WpDeserializer");
 				
 				
 		builder.setBolt("articleExtraction", articleExtraction, 1)
