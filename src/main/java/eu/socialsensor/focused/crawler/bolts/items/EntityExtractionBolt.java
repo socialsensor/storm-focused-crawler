@@ -1,4 +1,4 @@
-package eu.socialsensor.focused.crawler.items;
+package eu.socialsensor.focused.crawler.bolts.items;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

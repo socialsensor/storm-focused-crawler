@@ -1,4 +1,4 @@
-package eu.socialsensor.focused.crawler.items;
+package eu.socialsensor.focused.crawler.bolts.items;
 
 import java.util.HashMap;
 import java.util.List;
