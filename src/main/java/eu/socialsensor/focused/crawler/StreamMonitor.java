@@ -6,11 +6,11 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
-import eu.socialsensor.focused.crawler.items.EntityExtractionBolt;
-import eu.socialsensor.focused.crawler.items.EventDetectionBolt;
-import eu.socialsensor.focused.crawler.items.ItemDeserializationBolt;
-import eu.socialsensor.focused.crawler.items.POSTaggingBolt;
-import eu.socialsensor.focused.crawler.items.TokenizationBolt;
+import eu.socialsensor.focused.crawler.bolts.items.EntityExtractionBolt;
+import eu.socialsensor.focused.crawler.bolts.items.EventDetectionBolt;
+import eu.socialsensor.focused.crawler.bolts.items.ItemDeserializationBolt;
+import eu.socialsensor.focused.crawler.bolts.items.POSTaggingBolt;
+import eu.socialsensor.focused.crawler.bolts.items.TokenizationBolt;
 import eu.socialsensor.focused.crawler.spouts.RedisSpout;
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
