@@ -56,8 +56,8 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	private static final String SUCCESS = "success";
 	private static final String FAILED = "failed";
 	
-	private static String MEDIA_STREAM = "media";
-	private static String WEBPAGE_STREAM = "webpage";
+	public static String MEDIA_STREAM = "media";
+	public static String WEBPAGE_STREAM = "webpage";
 	
 	private Logger _logger;
 	

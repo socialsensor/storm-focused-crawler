@@ -84,6 +84,7 @@ public class ConceptDetectionBolt extends BaseRichBolt {
 
 	public void execute(Tuple input) {
 		try {
+			
 			ImageVector imgVec = (ImageVector) input.getValueByField("ImageVector");
 			MediaItem mediaItem = (MediaItem) input.getValueByField("MediaItem");
 			

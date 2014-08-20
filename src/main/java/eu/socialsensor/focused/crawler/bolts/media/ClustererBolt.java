@@ -1,16 +1,20 @@
 package eu.socialsensor.focused.crawler.bolts.media;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.impl.HttpSolrServer;
+import org.apache.solr.common.SolrInputDocument;
 
+import eu.socialsensor.focused.crawler.models.ImageVector;
 import eu.socialsensor.framework.client.dao.MediaClusterDAO;
 import eu.socialsensor.framework.client.dao.MediaItemDAO;
 import eu.socialsensor.framework.client.dao.impl.MediaClusterDAOImpl;
@@ -47,61 +51,66 @@ public class ClustererBolt extends BaseRichBolt {
 	private MediaItemDAO _mediaItemDAO = null;
 	private MediaClusterDAO _mediaClusterDAO = null;
 
-	private Queue<Pair<?, ?>> _mQ = new LinkedList<Pair<?, ?>>();
+	private Queue<Pair<?, ?>> _mQ = new LinkedBlockingQueue<Pair<?, ?>>();
 
 	private Map<String, String> newClusters = new HashMap<String, String>();
 	private Map<String, String> existingClusters = new HashMap<String, String>();
 	
 	private VisualIndexHandler _visualIndex;
 
-	private String indexHostname;
-	private String indexCollection;
+	private String vIndexHostname;
+	private String vIndexCollection;
 
+	private String textIndexService;
+	
 	private double threshold = 0.75;
+
+	private HttpSolrServer textIndexServiceHandler;
 	
 	public ClustererBolt(String mongoHost, String mediaItemsDbName, String mediaItemsCollectionName, String clustersDbName, 
-			String clustersCollectionName, String indexHostname, String indexCollection) {
+			String clustersCollectionName, String vIndexHostname, String vIndexCollection, String textIndexService) {
+		
 		this.mongoHost = mongoHost;
 		this.mediaItemsDbName = mediaItemsDbName;
 		this.mediaItemsCollectionName = mediaItemsCollectionName;
 		this.clustersDbName = clustersDbName;
 		this.clustersCollectionName = clustersCollectionName;
 		
-		this.indexHostname = indexHostname; 
-		this.indexCollection = indexCollection;
+		this.vIndexHostname = vIndexHostname; 
+		this.vIndexCollection = vIndexCollection;
+		
+		this.textIndexService = textIndexService;
 	}
 	
 	public ClustererBolt(String mongoHost, String mediaItemsDbName, String mediaItemsCollectionName, String clustersDbName, 
-			String clustersCollectionName, String indexHostname, String indexCollection, double threshold ) {
+			String clustersCollectionName, String indexHostname, String indexCollection, String textIndexService, double threshold ) {
 		
-		this(mongoHost, mediaItemsDbName, mediaItemsCollectionName, clustersDbName, clustersCollectionName, indexHostname, indexCollection);
-		
+		this(mongoHost, mediaItemsDbName, mediaItemsCollectionName, clustersDbName, clustersCollectionName, indexHostname, indexCollection, textIndexService);
 		this.threshold = threshold;
 	}
 	
-	public ClustererBolt(String mongoHost, String mediaItemsDbName, String mediaItemsCollectionName, String indexHostname, String indexCollection ) {
-		
-		this(mongoHost, mediaItemsDbName, mediaItemsCollectionName, null, null, indexHostname, indexCollection);
-		
+	public ClustererBolt(String mongoHost, String mediaItemsDbName, String mediaItemsCollectionName, String indexHostname, String indexCollection, String textIndexService) {
+		this(mongoHost, mediaItemsDbName, mediaItemsCollectionName, null, null, indexHostname, indexCollection, textIndexService);
 	}
 	
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
+    	
     }
 
-	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, 
-			OutputCollector collector) {
+	public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, OutputCollector collector) {
 		
 		logger = Logger.getLogger(ClustererBolt.class);
 		
 		try {
-			
 			_mediaItemDAO = new MediaItemDAOImpl(mongoHost, mediaItemsDbName, mediaItemsCollectionName);
 			
 			if(clustersDbName != null && clustersCollectionName != null) {
 				_mediaClusterDAO = new MediaClusterDAOImpl(mongoHost, clustersDbName, clustersCollectionName);
 			}
 			
-			_visualIndex = new VisualIndexHandler(indexHostname, indexCollection);
+			_visualIndex = new VisualIndexHandler(vIndexHostname, vIndexCollection);
+			
+			textIndexServiceHandler = new HttpSolrServer(textIndexService);
 			
 			Thread clustererThread = new Thread(new Clusterer(_mQ));
 			clustererThread.start();
@@ -112,31 +121,33 @@ public class ClustererBolt extends BaseRichBolt {
 		} catch (Exception e) {
 			logger.error(e);
 		}
-		
 	}
 
 	public void execute(Tuple tuple) {
 		try {
 			MediaItem mediaItem = (MediaItem) tuple.getValueByField("MediaItem");
+			
+			if(mediaItem == null)
+				return;
+			
 			String id = mediaItem.getId();
 			
 			JsonResultSet response = _visualIndex.getSimilarImages(id, threshold);
+			
 			List<JsonResult> results = response.getResults();
-			if(results.size()>1) {
-				String nearestId = results.get(0).getId();
-				if(id.equals(nearestId))
-					nearestId = results.get(1).getId();
-				
-				_mQ.offer(Pair.of(id, nearestId));
+			String nearestId = null;
+			for(JsonResult result : results) {
+				nearestId = result.getId();
+				if(id.equals(nearestId)) {
+					continue;
+				}
 			}
-			else {
-				_mQ.offer(Pair.of(id, null));
-			}
+			_mQ.offer(Pair.of(id, nearestId));
+			
 		}
 		catch(Exception e) {
 			logger.error(e);
 		}
-		
 		
 	}   
 	
@@ -153,6 +164,7 @@ public class ClustererBolt extends BaseRichBolt {
 			while(true) {
 				Pair<?, ?> pair = queue.poll();
 				if(pair == null) {
+					// Sleep one second
 					try {
 						Thread.sleep(1000);
 					} catch (InterruptedException e) {
@@ -178,6 +190,7 @@ public class ClustererBolt extends BaseRichBolt {
 				}
 			}
 		}
+		
 	}
 	
 	public class Updater implements Runnable {
@@ -186,46 +199,52 @@ public class ClustererBolt extends BaseRichBolt {
 		public void run() {
 			while(true) {
 				try {
+					// Wait 5 minutes & update
 					Thread.sleep(5 * 60 * 1000);
 				} catch (InterruptedException e) {
 					logger.error(e);
 				}
 				
-				Map<String, String> existingC = new HashMap<String, String>();
+				Map<String, String> clustersToUpdate = new HashMap<String, String>();
 				synchronized(existingClusters) {
-					existingC.putAll(existingClusters);
+					clustersToUpdate.putAll(existingClusters);
 					existingClusters.clear();
 				}
 				
-				Map<String, String> newC = new HashMap<String, String>();
+				Map<String, String> clustersToAdd = new HashMap<String, String>();
 				synchronized(newClusters) {
-					newC.putAll(newClusters);
+					clustersToAdd.putAll(newClusters);
 					newClusters.clear();
 				}
 				
+				List<SolrInputDocument> docs = new ArrayList<SolrInputDocument>();
 				// Store new clusters
-				for(String mId : newC.keySet()) {
-					
-					String clusterId = newC.get(mId);
-					
+				for(String mId : clustersToAdd.keySet()) {
+					String clusterId = clustersToAdd.get(mId);
 					_mediaItemDAO.updateMediaItem(mId, "clusterId", clusterId);
 					
-					MediaCluster cluster = new MediaCluster(clusterId.toString());
-					cluster.addMember(mId);
+					SolrInputDocument doc = new SolrInputDocument();
+					doc.addField("id", mId);
+					doc.addField("clusterId", clusterId);
+			
+					docs.add(doc);
 					
-					if(_mediaClusterDAO != null)
+					if(_mediaClusterDAO != null) {
+						MediaCluster cluster = new MediaCluster(clusterId.toString());
+						cluster.addMember(mId);
 						_mediaClusterDAO.addMediaCluster(cluster);
+					}
 				}
 				
 				// Update media items with cluster id and clusters with new members
-				for(Entry<String, String> e : existingC.entrySet()) {
+				for(Entry<String, String> e : clustersToUpdate.entrySet()) {
 					
-					String id = e.getKey();
+					String mId = e.getKey();
 					String nearestMediaId = e.getValue();
 					
 					String clusterId = null;
-					if(newC.containsKey(id)) {
-						clusterId = newC.get(id);
+					if(clustersToAdd.containsKey(mId)) {
+						clusterId = clustersToAdd.get(mId);
 					}
 					else {
 						MediaItem nearestMediaItem = _mediaItemDAO.getMediaItem(nearestMediaId);
@@ -240,84 +259,35 @@ public class ClustererBolt extends BaseRichBolt {
 					
 					if(clusterId != null) {
 						
-						logger.info(id + " -> Cluster: " + clusterId + " ( nearest: " + nearestMediaId + " )");
+						logger.info(mId + " -> Cluster: " + clusterId + " ( nearest: " + nearestMediaId + " )");
 						
-						_mediaItemDAO.updateMediaItem(id, "clusterId", clusterId);
+						_mediaItemDAO.updateMediaItem(mId, "clusterId", clusterId);
 						
-						if(_mediaClusterDAO != null)
-							_mediaClusterDAO.addMediaItemInCluster(clusterId, id);
+						SolrInputDocument doc = new SolrInputDocument();
+						doc.addField("id", mId);
+						doc.addField("clusterId", clusterId);
+				
+						docs.add(doc);
+						
+						if(_mediaClusterDAO != null) {
+							_mediaClusterDAO.addMediaItemInCluster(clusterId, mId);
+						}
+						
 					}
 					else {
 						logger.error("Error: " + nearestMediaId + " not clustered!");
 						
 					}
 				}
+				
+				try {
+					textIndexServiceHandler.add(docs);
+					textIndexServiceHandler.commit();
+				} catch (Exception e) {
+					logger.error(e);
+				}
 			}
-			
 		}
 	}
 	
-	public class ClustererOld implements Runnable {
-
-		private Queue<Pair<?, ?>> queue;
-		
-		public ClustererOld(Queue<Pair<?, ?>> queue) {
-			this.queue = queue;
-		}
-		
-		public void run() {
-			
-			while(true) {
-				Pair<?, ?> pair = queue.poll();
-				if(pair == null) {
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-						logger.error(e);
-					}
-				}
-				else {
-					String id = (String) pair.getLeft();
-					Object nearestId = pair.getRight();
-					
-					if(nearestId != null) {
-					
-						MediaItem nearestMediaItem = _mediaItemDAO.getMediaItem(nearestId.toString());
-						if(nearestMediaItem != null && nearestMediaItem.getClusterId() != null) {
-							
-							// Add media item to the same cluster as the nearest neighbor
-							String clusterId = nearestMediaItem.getClusterId();
-							
-							logger.info(id + " -> " + nearestId + " (" + nearestId + ")");
-							
-							_mediaItemDAO.updateMediaItem(id, "clusterId", clusterId);
-							
-							if(_mediaClusterDAO != null)
-								_mediaClusterDAO.addMediaItemInCluster(clusterId, id);
-						}
-						else {
-							if(nearestMediaItem == null) {
-								logger.error("Error: " + nearestId + " not found!");
-							}
-							else {
-								logger.error("Error: " + nearestId + " not clustered!");
-							}
-						}
-					}
-					else {
-						// Create new Cluster
-						UUID clusterId = UUID.randomUUID();
-						
-						_mediaItemDAO.updateMediaItem(id, "clusterId", clusterId);
-						
-						MediaCluster cluster = new MediaCluster(clusterId.toString());
-						cluster.addMember(id);
-						
-						if(_mediaClusterDAO != null)
-							_mediaClusterDAO.addMediaCluster(cluster);
-					}
-				}
-			}
-		}
-	}
 }

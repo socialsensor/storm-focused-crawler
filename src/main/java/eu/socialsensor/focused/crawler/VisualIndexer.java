@@ -144,7 +144,7 @@ public class VisualIndexer {
 			
 			mediaCounter = new MediaCounterBolt(mongodbHostname, "Prototype");
 			visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
-			clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection);
+			clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, clustersDB, clustersCollection, visualIndexHostname, visualIndexCollection, mediaTextIndexService);
 			conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
 			
 			mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);

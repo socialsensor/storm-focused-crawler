@@ -78,8 +78,8 @@ public class MediaTextIndexerBolt extends BaseRichBolt {
 		public void run() {
 			while(true) {
 				try {
-					// Just wait 10 seconds
-					Thread.sleep(10 * 1000);
+					// Just wait 15 seconds
+					Thread.sleep(15 * 1000);
 
 					List<MediaItem> mItems = new ArrayList<MediaItem>();
 					queue.drainTo(mItems);

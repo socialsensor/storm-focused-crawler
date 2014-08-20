@@ -76,12 +76,10 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	public void execute(Tuple tuple) {
 		if(_mediaItemDAO != null) {
 			
-			
 			try {
 				
 			if(++received%1000==0) {
-				_logger.info(received + " media items received. " + newMedia + " are new and "
-						+ existedMedia + " already exists!");
+				_logger.info(received + " media items received. " + newMedia + " are new and " + existedMedia + " already exists!");
 			}
 				
 			MediaItem mediaItem = (MediaItem) tuple.getValueByField("MediaItem");
@@ -98,7 +96,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 				
 					Integer width = mediaItem.getWidth();
 					Integer height = mediaItem.getHeight();
-					if(width!=null && height!=null && width!=-1 && height!=-1) {
+					if(width != null && height != null && width != -1 && height != -1) {
 						update.setField("height", height);
 						update.setField("width", width);
 					}

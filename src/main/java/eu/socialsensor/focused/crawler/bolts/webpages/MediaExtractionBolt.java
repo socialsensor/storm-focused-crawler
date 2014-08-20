@@ -15,6 +15,7 @@ import eu.socialsensor.framework.common.domain.WebPage;
 import eu.socialsensor.framework.retrievers.socialmedia.SocialMediaRetriever;
 import eu.socialsensor.framework.retrievers.socialmedia.dailymotion.DailyMotionRetriever;
 import eu.socialsensor.framework.retrievers.socialmedia.facebook.FacebookRetriever;
+import eu.socialsensor.framework.retrievers.socialmedia.flickr.FlickrRetriever;
 import eu.socialsensor.framework.retrievers.socialmedia.instagram.InstagramRetriever;
 import eu.socialsensor.framework.retrievers.socialmedia.twitpic.TwitpicRetriever;
 import eu.socialsensor.framework.retrievers.socialmedia.vimeo.VimeoRetriever;
@@ -47,6 +48,9 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	//private static String instagramToken = "";
 	//private static String instagramSecret = "";
 	
+	private static String flickrKey = "";
+	private static String flickrSecret = "";
+	
 	private static String facebookToken = "260504214011769|jATWKceE7aVH4jxsB4DBuNjKBRc";
 	
 	private static String youtubeClientId = "manosetro";
@@ -58,6 +62,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 	private static Pattern twitpicPattern 		= 	Pattern.compile("https*://twitpic.com/([A-Za-z0-9]+)/*.*$");
 	private static Pattern dailymotionPattern 	= 	Pattern.compile("https*://www.dailymotion.com/video/([A-Za-z0-9]+)_.*$");
 	private static Pattern facebookPattern 		= 	Pattern.compile("https*://www.facebook.com/photo.php?.*fbid=([a-zA-Z0-9_\\-]+)(&.+=.+)*");
+	private static Pattern flickrPattern 		= 	Pattern.compile("https*://flickr.com/photos/([A-Za-z0-9@]+)/([A-Za-z0-9@]+)/*.*$");
 	
 	private Map<String, SocialMediaRetriever> retrievers = new HashMap<String, SocialMediaRetriever>();
 	
@@ -77,6 +82,7 @@ public class MediaExtractionBolt extends BaseRichBolt {
 		retrievers.put("twitpic", new TwitpicRetriever());
 		retrievers.put("dailymotion", new DailyMotionRetriever());
 		retrievers.put("facebook", new FacebookRetriever(facebookToken));
+		retrievers.put("flickr", new FlickrRetriever(flickrKey, flickrSecret));
 	}
 
 	public void execute(Tuple tuple) {
@@ -156,6 +162,11 @@ public class MediaExtractionBolt extends BaseRichBolt {
 			mediaId = matcher.group(1);
 			retriever = retrievers.get("facebook");
 			source = "facebook";
+		}
+		else if((matcher = flickrPattern.matcher(url)).matches()) {
+			mediaId = matcher.group(2);
+			//retriever = retrievers.get("flickr");
+			source = "flickr";
 		}
 		else {
 			logger.error(url + " matches nothing.");

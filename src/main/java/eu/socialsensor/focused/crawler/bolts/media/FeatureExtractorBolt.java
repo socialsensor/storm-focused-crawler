@@ -1,11 +1,16 @@
 package eu.socialsensor.focused.crawler.bolts.media;
 
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.Iterator;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
@@ -167,4 +172,65 @@ public class FeatureExtractorBolt extends BaseRichBolt {
 		declarer.declare(new Fields("MediaItem", "ImageVector"));
 	}
 	
+	public static BufferedImage resize(BufferedImage img, int maxWidth, int maxHeight) { 
+		
+		int scaledWidth = 0, scaledHeight = 0;
+		
+		scaledWidth = maxWidth;
+		scaledHeight = (int) (img.getHeight() * ( (double) scaledWidth / img.getWidth() ));
+		if (scaledHeight> maxHeight) {
+	        scaledHeight = maxHeight;
+	        scaledWidth= (int) (img.getWidth() * ( (double) scaledHeight/ img.getHeight() ));
+
+	        if (scaledWidth > maxWidth) {
+	            scaledWidth = maxWidth;
+	            scaledHeight = maxHeight;
+	        }
+	    }
+		
+		Image resized =  img.getScaledInstance( scaledWidth, scaledHeight, Image.SCALE_SMOOTH);
+		BufferedImage buffered = new BufferedImage(scaledWidth, scaledHeight, Image.SCALE_REPLICATE);
+		buffered.getGraphics().drawImage(resized, 0, 0 , null);
+		
+		//String formatName = getFormatName( ImageIO.createImageInputStream(buffered) ) ;
+	    //ByteArrayOutputStream out = new ByteArrayOutputStream();
+	    //ImageIO.write(buffered, formatName, out);
+	    
+		return buffered;
+		
+	    //int w = img.getWidth();  
+	    //int h = img.getHeight();  
+	    //BufferedImage dimg = new BufferedImage(newW, newH, img.getType());  
+	    //Graphics2D g = dimg.createGraphics();  
+	    //g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+	    //RenderingHints.VALUE_INTERPOLATION_BILINEAR);  
+	    //g.drawImage(img, 0, 0, scaledWidth, scaledHeight, 0, 0, w, h, null);  
+	    //g.dispose();  
+	    //return dimg;  
+	}  
+	
+	public static String getFormatName(ImageInputStream iis) {
+	    try { 
+
+	        // Find all image readers that recognize the image format
+	        @SuppressWarnings("rawtypes")
+			Iterator iter = ImageIO.getImageReaders(iis);
+	        if (!iter.hasNext()) {
+	            // No readers found
+	            return null;
+	        }
+
+	        // Use the first reader
+	        ImageReader reader = (ImageReader)iter.next();
+
+	        // Close stream
+	        iis.close();
+
+	        // Return the format name
+	        return reader.getFormatName();
+	    } catch (IOException e) {
+	    }
+
+	    return null;
+	}
 }

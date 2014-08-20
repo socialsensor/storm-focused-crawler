@@ -7,7 +7,6 @@ import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
 import eu.socialsensor.focused.crawler.bolts.media.ClustererBolt;
-import eu.socialsensor.focused.crawler.bolts.media.ConceptDetectionBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaItemDeserializationBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaTextIndexerBolt;
 import eu.socialsensor.focused.crawler.bolts.media.MediaUpdaterBolt;
@@ -48,10 +47,12 @@ public class SocialsensorCrawler {
 		
 		XMLConfiguration config;
 		try {
-			if(args.length == 1)
+			if(args.length == 1) {
 				config = new XMLConfiguration(args[0]);
-			else
+			}
+			else {
 				config = new XMLConfiguration("./conf/focused.crawler.xml");
+			}
 		}
 		catch(ConfigurationException ex) {
 			logger.error(ex);
@@ -104,17 +105,17 @@ public class SocialsensorCrawler {
 	public static StormTopology createTopology(XMLConfiguration config) throws Exception {
 		
 		// Get Params from config file
-		String redisHost = config.getString("redis.hostname", "xxx.xxx.xxx.xxx");
-		String webPagesChannel = config.getString("redis.webPagesChannel", "webpages");
-		String mediaItemsChannel = config.getString("redis.mediaItemsChannel", "media");
+		String redisHost = config.getString("redis.hostname");
+		String webPagesChannel = config.getString("redis.webPagesChannel");
+		String mediaItemsChannel = config.getString("redis.mediaItemsChannel");
 		
-		String mongodbHostname = config.getString("mongodb.hostname", "xxx.xxx.xxx.xxx");
-		String mediaItemsDB = config.getString("mongodb.mediaItemsDB", "Prototype");
-		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection", "MediaItems_WP");
-		String streamUsersDB = config.getString("mongodb.streamUsersDB", "Prototype");
-		String streamUsersCollection = config.getString("mongodb.streamUsersCollection", "StreamUsers");
-		String webPagesDB = config.getString("mongodb.webPagesDB", "Prototype");
-		String webPagesCollection = config.getString("mongodb.webPagesCollection", "WebPages");
+		String mongodbHostname = config.getString("mongodb.hostname");
+		String mediaItemsDB = config.getString("mongodb.mediaItemsDB");
+		String mediaItemsCollection = config.getString("mongodb.mediaItemsCollection");
+		String streamUsersDB = config.getString("mongodb.streamUsersDB");
+		String streamUsersCollection = config.getString("mongodb.streamUsersCollection");
+		String webPagesDB = config.getString("mongodb.webPagesDB");
+		String webPagesCollection = config.getString("mongodb.webPagesCollection");
 		//String clustersDB = config.getString("mongodb.clustersDB", "Prototype");
 		//String clustersCollection = config.getString("mongodb.clustersCollection", "MediaClusters");
 		
@@ -133,27 +134,22 @@ public class SocialsensorCrawler {
 		
 		String pcaFile = learningFiles + "pca_surf_4x128_32768to1024.txt";
 		
-		String textIndexHostname = config.getString("textindex.hostname", "http://xxx.xxx.xxx.xxx:8080/solr");
-		String textIndexCollection = config.getString("textindex.collections.webpages", "WebPages");
+		String textIndexHostname = config.getString("textindex.hostname");
+		String textIndexCollection = config.getString("textindex.collections.webpages");
 		String textIndexService = textIndexHostname + "/" + textIndexCollection;
 		
-		String mediaTextIndexCollection = config.getString("textindex.collections.media", "MediaItems");
+		String mediaTextIndexCollection = config.getString("textindex.collections.media");
 		String mediaTextIndexService = textIndexHostname + "/" + mediaTextIndexCollection;
-		
-		String conceptDetectorMatlabfile = config.getString("conceptdetector.matlabfile");
 		
 		// Initialize spouts and bolts
 		BaseRichSpout wpSpout, miSpout;
 		IRichBolt wpDeserializer, miDeserializer;
 		IRichBolt urlExpander, articleExtraction, mediaExtraction;
 		IRichBolt mediaUpdater, webPageUpdater, textIndexer;
-		IRichBolt visualIndexer, mediaTextIndexer, conceptDetector, clusterer;
+		IRichBolt visualIndexer, mediaTextIndexer, clusterer;
 		
 		wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
 		miSpout = new RedisSpout(redisHost, mediaItemsChannel, "id");
-			
-		//wpRanker = new RankerBolt(webPagesChannel);
-		//miRanker = new MediaRankerBolt(mediaItemsChannel);
 			
 		wpDeserializer = new WebPageDeserializationBolt(webPagesChannel);
 		miDeserializer = new MediaItemDeserializationBolt(mediaItemsChannel);
@@ -167,11 +163,9 @@ public class SocialsensorCrawler {
 			
 		// Media Items Bolts
 		visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
-		clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, visualIndexHostname, visualIndexCollection);
-		conceptDetector = new ConceptDetectionBolt(conceptDetectorMatlabfile);
+		clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, visualIndexHostname, visualIndexCollection, mediaTextIndexService);
 		mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
 		mediaTextIndexer = new MediaTextIndexerBolt(mediaTextIndexService);
-		
 		
 		// Create topology 
 		TopologyBuilder builder = new TopologyBuilder();
@@ -181,7 +175,6 @@ public class SocialsensorCrawler {
 		builder.setSpout("miSpout", miSpout, 1);
 		
 		// Web Pages Bolts
-		//builder.setBolt("wpRanker", wpRanker, 2).shuffleGrouping("wpSpout");
 		builder.setBolt("wpDeserializer", wpDeserializer, 2).shuffleGrouping("wpSpout");
 		builder.setBolt("expander", urlExpander, 8).shuffleGrouping("wpDeserializer");
 		builder.setBolt("articleExtraction", articleExtraction, 1).shuffleGrouping("expander", "webpage");
@@ -189,21 +182,17 @@ public class SocialsensorCrawler {
 		builder.setBolt("webPageUpdater", webPageUpdater, 1)
 			.shuffleGrouping("articleExtraction", "webpage")
 			.shuffleGrouping("mediaExtraction", "webpage");
-		builder.setBolt("textIndexer", textIndexer, 1)
-			.shuffleGrouping("articleExtraction", "webpage");
+		builder.setBolt("textIndexer", textIndexer, 1).shuffleGrouping("articleExtraction", "webpage");
 
 		// Media Items Bolts
-		//builder.setBolt("miRanker", miRanker, 2).shuffleGrouping("miSpout");
 		builder.setBolt("miDeserializer", miDeserializer, 2).shuffleGrouping("miSpout");
-        builder.setBolt("indexer", visualIndexer, 16)
+        builder.setBolt("vIndexer", visualIndexer, 16)
         	.shuffleGrouping("miDeserializer")
 			.shuffleGrouping("articleExtraction", "media")
 			.shuffleGrouping("mediaExtraction", "media");
-        
-        builder.setBolt("conceptDetector", conceptDetector, 1).shuffleGrouping("indexer");
-        builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("indexer");   
-        builder.setBolt("mediaupdater", mediaUpdater, 1).shuffleGrouping("conceptDetector");
+        builder.setBolt("mediaupdater", mediaUpdater, 1).shuffleGrouping("vIndexer");
 		builder.setBolt("mediaTextIndexer", mediaTextIndexer, 1).shuffleGrouping("mediaupdater");
+        builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("mediaupdater");   
 		
 		StormTopology topology = builder.createTopology();
 		return topology;
