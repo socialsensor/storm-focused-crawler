@@ -39,7 +39,7 @@ import backtype.storm.topology.base.BaseRichSpout;
  *  https://github.com/nathanmarz/storm/wiki/Tutorial
  *  
  */
-public class SocialsensorCrawler {
+public class Crawler {
 
 	private static Logger logger = Logger.getLogger(SocialsensorCrawler.class);
 	
@@ -146,7 +146,7 @@ public class SocialsensorCrawler {
 		IRichBolt wpDeserializer, miDeserializer;
 		IRichBolt urlExpander, articleExtraction, mediaExtraction;
 		IRichBolt mediaUpdater, webPageUpdater, textIndexer;
-		IRichBolt visualIndexer, mediaTextIndexer;
+		IRichBolt visualIndexer, mediaTextIndexer, clusterer;
 		
 		wpSpout = new RedisSpout(redisHost, webPagesChannel, "url");
 		miSpout = new RedisSpout(redisHost, mediaItemsChannel, "id");
@@ -163,7 +163,7 @@ public class SocialsensorCrawler {
 			
 		// Media Items Bolts
 		visualIndexer = new VisualIndexerBolt(visualIndexHostname, visualIndexCollection, codebookFiles, pcaFile);
-		//clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, visualIndexHostname, visualIndexCollection, mediaTextIndexService);
+		clusterer = new ClustererBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, visualIndexHostname, visualIndexCollection, mediaTextIndexService);
 		mediaUpdater = new MediaUpdaterBolt(mongodbHostname, mediaItemsDB, mediaItemsCollection, streamUsersDB, streamUsersCollection);
 		mediaTextIndexer = new MediaTextIndexerBolt(mediaTextIndexService);
 		
@@ -192,7 +192,7 @@ public class SocialsensorCrawler {
 			.shuffleGrouping("mediaExtraction", "media");
         builder.setBolt("mediaupdater", mediaUpdater, 1).shuffleGrouping("vIndexer");
 		builder.setBolt("mediaTextIndexer", mediaTextIndexer, 1).shuffleGrouping("mediaupdater");
-        //builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("mediaupdater");   
+        builder.setBolt("clusterer", clusterer, 1).shuffleGrouping("mediaupdater");   
 		
 		StormTopology topology = builder.createTopology();
 		return topology;

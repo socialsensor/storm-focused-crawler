@@ -32,8 +32,7 @@ import eu.socialsensor.framework.common.domain.Item.Operation;
 import eu.socialsensor.framework.common.domain.feeds.KeywordsFeed;
 import eu.socialsensor.framework.common.domain.feeds.LocationFeed;
 import eu.socialsensor.framework.common.domain.feeds.SourceFeed;
-import eu.socialsensor.framework.streams.StreamConfiguration;
-import eu.socialsensor.framework.streams.StreamException;
+
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -48,13 +47,7 @@ public class TwitterStreamBolt extends BaseRichBolt {
 	 * 
 	 */
 	private static final long serialVersionUID = 6470201177858275997L;
-	
-	private static final String KEY = "Key";
-	private static final String SECRET = "Secret";
-	private static final String ACCESS_TOKEN = "AccessToken";
-	private static final String ACCESS_TOKEN_SECRET = "AccessTokenSecret";
-	
-	private StreamConfiguration _config;
+
 	private Logger _logger;
 
 	private OutputCollector _collector;
@@ -62,8 +55,17 @@ public class TwitterStreamBolt extends BaseRichBolt {
 	private TwitterStream _twitterStream;
 	private Twitter _twitterApi;
 
-	public TwitterStreamBolt(StreamConfiguration config) {
-		this._config = config;
+	String oAuthConsumerKey = null;
+	String oAuthConsumerSecret = null;
+	String oAuthAccessToken = null;
+	String oAuthAccessTokenSecret = null;
+	
+	public TwitterStreamBolt(String oAuthConsumerKey, String oAuthConsumerSecret, String oAuthAccessToken, 
+			String oAuthAccessTokenSecret) {
+		this.oAuthConsumerKey = oAuthConsumerKey;
+		this.oAuthConsumerSecret = oAuthConsumerSecret;
+		this.oAuthAccessToken = oAuthAccessToken;
+		this.oAuthAccessTokenSecret = oAuthAccessTokenSecret;
 	}
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
@@ -71,12 +73,7 @@ public class TwitterStreamBolt extends BaseRichBolt {
 		
 		_logger = Logger.getLogger(TwitterStreamBolt.class);
 		_collector = collector;
-		
-		String oAuthConsumerKey 		= 	_config.getParameter(KEY);
-		String oAuthConsumerSecret 		= 	_config.getParameter(SECRET);
-		String oAuthAccessToken 		= 	_config.getParameter(ACCESS_TOKEN);
-		String oAuthAccessTokenSecret 	= 	_config.getParameter(ACCESS_TOKEN_SECRET);
-		
+
 		if (oAuthConsumerKey == null || oAuthConsumerSecret == null ||
 				oAuthAccessToken == null || oAuthAccessTokenSecret == null) {
 			_logger.error("#Twitter : Stream requires authentication");
@@ -120,7 +117,7 @@ public class TwitterStreamBolt extends BaseRichBolt {
 		declarer.declare(new Fields("Item"));
 	}
 
-	public synchronized void subscribe(List<Feed> feeds) throws StreamException {	
+	public synchronized void subscribe(List<Feed> feeds) {	
 			
 		List<String> keys = new ArrayList<String>();
 		List<String> users = new ArrayList<String>();

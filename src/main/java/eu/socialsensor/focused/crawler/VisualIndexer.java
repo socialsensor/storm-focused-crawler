@@ -33,7 +33,7 @@ public class VisualIndexer {
 	 *
 	 *	Entry class for distributed visual indexing. 
 	 *  This class defines a storm-based pipeline (topology) for the processing of MediaItems 
-	 *  received from a Redis pub/sub channel. 
+	 *  received from a Redis-based pub/sub channel. 
 	 *  
 	 * 	The main steps in the topology are: FeatureExtraction/VisualIndexing, ConceptDetection, TextIndexing,
 	 *  VisualClustering and media-based Statistics (e.g top tags, top users etc.)
