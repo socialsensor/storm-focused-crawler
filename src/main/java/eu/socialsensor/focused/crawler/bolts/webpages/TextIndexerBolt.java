@@ -41,6 +41,8 @@ public class TextIndexerBolt extends BaseRichBolt {
 		logger = Logger.getLogger(TextIndexerBolt.class);
 		
 		_queue = new ArrayBlockingQueue<WebPage>(10000);
+		
+		logger.info("Connect to " + _indexService);
 		_solrWebPageHandler = SolrWebPageHandler.getInstance(_indexService);
 		
 		Thread t = new Thread(new TextIndexer());

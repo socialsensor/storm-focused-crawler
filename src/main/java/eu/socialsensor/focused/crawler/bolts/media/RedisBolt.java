@@ -1,4 +1,4 @@
-package eu.socialsensor.focused.crawler.bolts.webpages;
+package eu.socialsensor.focused.crawler.bolts.media;
 
 import java.util.Map;
 
@@ -45,7 +45,7 @@ public class RedisBolt extends BaseRichBolt {
 		try {
 			MediaItem mi = (MediaItem) input.getValueByField("MediaItem");
 			if(mi != null) {
-				publisherJedis.publish(channel, mi.toJSONString());
+				publisherJedis.publish(channel, mi.getId());
 			}
 		}
 		catch(Exception e) {

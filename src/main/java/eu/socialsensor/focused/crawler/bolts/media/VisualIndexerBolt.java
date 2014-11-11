@@ -3,6 +3,7 @@ package eu.socialsensor.focused.crawler.bolts.media;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
@@ -19,6 +20,8 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.log4j.Logger;
 
 import eu.socialsensor.focused.crawler.models.ImageVector;
+import eu.socialsensor.framework.client.search.visual.JsonResultSet;
+import eu.socialsensor.framework.client.search.visual.JsonResultSet.JsonResult;
 import eu.socialsensor.framework.client.search.visual.VisualIndexHandler;
 import eu.socialsensor.framework.common.domain.MediaItem;
 import gr.iti.mklab.visual.aggregation.VladAggregatorMultipleVocabularies;
@@ -77,6 +80,7 @@ public class VisualIndexerBolt extends BaseRichBolt {
 			pca.loadPCAFromFile(pcaFile);
 			ImageVectorization.setPcaProjector(pca);
 		}
+		
 	}
 	
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
@@ -102,8 +106,10 @@ public class VisualIndexerBolt extends BaseRichBolt {
 		if(mediaItem == null)
 			return;
 		
-		HttpGet httpget = null;
 		ImageVector imageVector = null;
+		String nearestMediaItem = null;
+		
+		HttpGet httpget = null;
 		try {
 			String id = mediaItem.getId();
 			String type = mediaItem.getType();
@@ -122,7 +128,7 @@ public class VisualIndexerBolt extends BaseRichBolt {
 						". Http code: " + code + " Error: " + status.getReasonPhrase());
 				
 				mediaItem.setVisualIndexed(false);
-				_collector.emit(tuple(mediaItem, imageVector));
+				_collector.emit(tuple(mediaItem, imageVector, nearestMediaItem));
 				
 				return;
 			}
@@ -133,7 +139,7 @@ public class VisualIndexerBolt extends BaseRichBolt {
 						". Http code: " + code + " Error: " + status.getReasonPhrase());
 				
 				mediaItem.setVisualIndexed(false);
-				_collector.emit(tuple(mediaItem, imageVector));
+				_collector.emit(tuple(mediaItem, imageVector, nearestMediaItem));
 				
 				return;
 			}
@@ -142,8 +148,6 @@ public class VisualIndexerBolt extends BaseRichBolt {
 			byte[] imageContent = IOUtils.toByteArray(input);
 			
 			BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageContent));
-			
-			boolean indexed = false;
 		
 			if(image != null) {
 				ImageVectorization imvec = new ImageVectorization(id, image, targetLengthMax, maxNumPixels);
@@ -158,33 +162,37 @@ public class VisualIndexerBolt extends BaseRichBolt {
 				if(vector==null || vector.length==0) {
 					_logger.error("Error in feature extraction for " + id);
 				}
-				
+			
 				imageVector = new ImageVector(id, url, vector);
-				indexed = _visualIndex.index(id, vector);
+				//boolean indexed = _visualIndex.index(id, vector);
+				
+				JsonResultSet similar = _visualIndex.getSimilarImagesAndIndex(id, vector, 0.85);
+				List<JsonResult> nearestMediaItems = similar.getResults();
+				if(!nearestMediaItems.isEmpty()) {
+					nearestMediaItem = nearestMediaItems.get(0).getId();
+				}
+				
 				
 			}
 			
-			if(!indexed) {
-				_logger.error("Failed to index media item " + id);
-			}
-			
-			mediaItem.setVisualIndexed(indexed);
-			_collector.emit(tuple(mediaItem, imageVector));
+			mediaItem.setVisualIndexed(true);
+			_collector.emit(tuple(mediaItem, imageVector, nearestMediaItem));
 			
 		} 
 		catch (Exception e) {
 			_logger.error(e);
 			mediaItem.setVisualIndexed(false);
-			_collector.emit(tuple(mediaItem, imageVector));
+			_collector.emit(tuple(mediaItem, imageVector, nearestMediaItem));
 		}
 		finally {
-			if(httpget != null)
+			if(httpget != null) {
 				httpget.abort();
+			}
 		}
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields("MediaItem", "ImageVector"));
+		declarer.declare(new Fields("MediaItem", "ImageVector", "nearestMediaItem"));
 	}
 	
 }

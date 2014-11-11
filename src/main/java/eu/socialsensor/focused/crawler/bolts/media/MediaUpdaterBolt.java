@@ -1,7 +1,5 @@
 package eu.socialsensor.focused.crawler.bolts.media;
 
-import static backtype.storm.utils.Utils.tuple;
-
 import java.util.List;
 import java.util.Map;
 
@@ -39,7 +37,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 	
 	private MediaItemDAO _mediaItemDAO;
 	private StreamUserDAO _streamUsersDAO;
-	private OutputCollector _collector;
+	//private OutputCollector _collector;
 
 	private long received = 0;
 	private long newMedia=0, existedMedia = 0;
@@ -66,7 +64,7 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 		try {
 			_mediaItemDAO = new MediaItemDAOImpl(_mongodbHostname, _mediaItemsDB, _mediaItemsCollection);
 			_streamUsersDAO = new StreamUserDAOImpl(_mongodbHostname, _streamUsersDB, _streamUsersCollection);
-			_collector = collector;
+			//_collector = collector;
 		} catch (Exception e) {
 			_logger.error(e);
 		}
@@ -75,7 +73,6 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 
 	public void execute(Tuple tuple) {
 		if(_mediaItemDAO != null) {
-			
 			try {
 				
 			if(++received%1000==0) {
@@ -86,13 +83,15 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 				if(mediaItem == null)
 					return;
 			
-				if(_mediaItemDAO.exists(mediaItem.getId())) {
+				String mId = mediaItem.getId();
+				
+				if(_mediaItemDAO.exists(mId)) {
 				
 					existedMedia++;
 					
 					UpdateItem update = new UpdateItem();
 					update.setField("vIndexed", mediaItem.isVisualIndexed());
-					update.setField("status", mediaItem.isVisualIndexed()?"indexed":"failed");
+					update.setField("status", mediaItem.isVisualIndexed() ? "indexed" : "failed");
 				
 					Integer width = mediaItem.getWidth();
 					Integer height = mediaItem.getHeight();
@@ -106,6 +105,11 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 						update.setField("concepts", concepts);
 					}
 					
+					String clusterId = mediaItem.getClusterId();
+					if(clusterId != null) {
+						update.setField("clusterId", clusterId);
+					}
+					
 					_mediaItemDAO.updateMediaItem(mediaItem.getId(), update);
 				}
 				else {
@@ -113,15 +117,15 @@ public class MediaUpdaterBolt extends BaseRichBolt {
 					_mediaItemDAO.addMediaItem(mediaItem);
 					
 					StreamUser user = mediaItem.getUser();
-					if(user != null) {
+					
+					if(user != null && _streamUsersDAO != null) {
+						user.setLastUpdated(System.currentTimeMillis());
+						
 						if(!_streamUsersDAO.exists(user.getId())) {
 							_streamUsersDAO.insertStreamUser(user);
 						}
 					}
 				}
-				
-				// Emit for indexing 
-				_collector.emit(tuple(mediaItem));
 				
 			}
 			catch(Exception e) {

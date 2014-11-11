@@ -232,8 +232,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 				String expandedUrl = webPage.getExpandedUrl();
 				if(expandedUrl==null || expandedUrl.length()>300) {
 					webPage.setStatus(FAILED);
-					_tupleQueue.add(webPage);
-					
+					//_tupleQueue.add(webPage);
 					continue;
 				}
 				
@@ -257,7 +256,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 								"   Not supported mime type: " + contentType.getMimeType());
 						
 						webPage.setStatus(FAILED);
-						_tupleQueue.add(webPage);
+						//_tupleQueue.add(webPage);
 						
 						continue;
 					}
@@ -277,12 +276,12 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					else {
 						_logger.error("Parsing of " + expandedUrl + " failed.");
 						webPage.setStatus(FAILED);
-						_tupleQueue.add(webPage);
+						//_tupleQueue.add(webPage);
 					}
 				} catch (Exception e) {
 					_logger.error("for " + expandedUrl, e);
 					webPage.setStatus(FAILED);
-					_tupleQueue.add(webPage);
+					//_tupleQueue.add(webPage);
 				}
 				finally {
 					if(httpget != null)
@@ -320,6 +319,10 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 	  		}
 	  	
 	  		String title = document.getTitle();
+	  		
+	  		if(title == null)
+	  			return false;
+	  		
 	  		String text = document.getText(true, false);
 
 	  		webPage.setTitle(title);
@@ -436,7 +439,7 @@ public class ArticleExtractionBolt extends BaseRichBolt {
 					continue;
 				
 			} catch (Exception e) {
-				_logger.error("Error for " + src + " in " + base, e);
+				_logger.error("Error for " + src + " in " + base);
 				continue;
 			}
 			

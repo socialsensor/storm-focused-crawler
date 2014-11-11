@@ -48,8 +48,7 @@ public class RedisSpout extends BaseRichSpout {
 	}
 	
 	public RedisSpout(String host, String channel, String uniqueField) {
-		this.host = host;
-		this.channel = channel;
+		this(host, channel);
 		this.uniqueField = uniqueField;
 	}
 
@@ -73,7 +72,7 @@ public class RedisSpout extends BaseRichSpout {
 				@Override
 				public void onMessage(String channel, String message) {
 					totalMessages++;
-					
+				
 					DBObject obj = (DBObject) JSON.parse(message);
 					
 					if(uniqueField != null) {
@@ -115,6 +114,8 @@ public class RedisSpout extends BaseRichSpout {
 
 			Jedis jedis = pool.getResource();
 			try {
+				logger.info("Subscribe on " + channel);
+				
 				jedis.subscribe(listener, channel);
 			} finally {
 				pool.returnResource(jedis);
@@ -123,14 +124,17 @@ public class RedisSpout extends BaseRichSpout {
 	};
 
 	public void open(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, SpoutOutputCollector collector) {
+
+		logger = Logger.getLogger(RedisSpout.class);
+		
 		_collector = collector;
 		queue = new LinkedBlockingQueue<String>(10000);
 		pool = new JedisPool(new JedisPoolConfig(), host);
-
+		
 		ListenerThread listener = new ListenerThread(queue, pool);
 		listener.start();
 
-		logger = Logger.getLogger(RedisSpout.class);
+		
 	}
 
 	public void close() {

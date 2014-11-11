@@ -24,7 +24,6 @@ public class MediaItemDeserializationBolt extends BaseRichBolt {
 	private Logger _logger;
 	
 	private OutputCollector _collector;
-	//private Queue<MediaItem> _queue;
 
 	private String inputField;
 
@@ -35,17 +34,9 @@ public class MediaItemDeserializationBolt extends BaseRichBolt {
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context,
 			OutputCollector collector) {
 		_collector = collector;
-		//_queue = new LinkedBlockingQueue<MediaItem>();
-		
+
 		_logger = Logger.getLogger(MediaItemDeserializationBolt.class);
 		
-		/*
-		Thread[] threads = new Thread[4];
-		for(int i=0; i<4; i++) {
-			threads[i] = new Thread(new DeserializerThread(_queue));
-			threads[i].start();
-		}
-		*/
 	}
 
 	public void execute(Tuple input) {
@@ -63,38 +54,5 @@ public class MediaItemDeserializationBolt extends BaseRichBolt {
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declare(new Fields("MediaItem"));
 	}
-
-	/*
-	class DeserializerThread extends Thread {
-
-		Queue<MediaItem> queue;
-		
-		public DeserializerThread(Queue<MediaItem> queue) {	
-			this.queue = queue;
-		}
-
-		public void run() {
-			while(true) {
-				try {
-					MediaItem mediaItem = null;
-					synchronized(_queue) {
-						mediaItem = queue.poll();
-					}
-					
-					if(mediaItem == null) {
-						Utils.sleep(500);
-					}
-					else {
-						_collector.emit(tuple(mediaItem));
-					}
-				}
-				catch(Exception e) {
-					Utils.sleep(500);
-					continue;
-				}
-			}
-		};
-	}
-	*/
 	
 }
