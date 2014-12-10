@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<configuration>
+
+    <redis>
+        <hostname>xxx.xxx.xxx.xxx</hostname>
+        <webPagesChannel>...</webPagesChannel>
+        <mediaItemsChannel>...</mediaItemsChannel>
+    </redis>
+
+    <mongodb>
+        <hostname>xxx.xxx.xxx.xxx</hostname>
+        
+        <webPagesDB>...</webPagesDB>
+        <webpagesCollection>...</webpagesCollection>
+        <mediaItemsDB>...</mediaItemsDB>
+        <mediaItemsCollection>...</mediaItemsCollection>
+        <streamUsersDB>...</streamUsersDB>
+        <streamUsersCollection>...</streamUsersCollection>
+    </mongodb>
+
+    <textindex>
+        <hostname>http://xxx.xxx.xxx.xxx:8080/solr</hostname>
+        <collections>
+        	<webpages>...</webpages>
+        	<media>...</media>
+        </collections>
+    </textindex>
+   
+    <topology>
+        <focusedCrawlerName>WikirateCrawler</focusedCrawlerName>
+        <local>true</local>
+        <workers>4</workers>
+    </topology>
+
+</configuration>
