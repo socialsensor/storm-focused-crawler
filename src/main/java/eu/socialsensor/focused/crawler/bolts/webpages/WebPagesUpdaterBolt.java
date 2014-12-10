@@ -74,6 +74,7 @@ public class WebPagesUpdaterBolt extends BaseRichBolt {
 				UpdateItem o = new UpdateItem();
 				o.setField("status", webPage.getStatus());
 				o.setField("isArticle", webPage.isArticle());
+				o.setField("title", webPage.getTitle());
 				o.setField("text", webPage.getText());
 				o.setField("domain", webPage.getDomain());
 				o.setField("expandedUrl", webPage.getExpandedUrl());
