@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<configuration>
+
+    <redis>
+        <hostname>xxx.xxx.xxx.xxx</hostname>
+        <itemsChannel>items</itemsChannel>
+        <webPagesChannel>webpagesNew</webPagesChannel>
+        <mediaItemsChannel>mediaNew</mediaItemsChannel>
+    </redis>
+
+    <mongodb>
+        <hostname>xxx.xxx.xxx.xxx</hostname>
+        <webPagesDB>Prototype</webPagesDB>
+        <webpagesCollection>WebPages</webpagesCollection>
+        <mediaItemsDB>Prototype</mediaItemsDB>
+        <mediaItemsCollection>MediaItems</mediaItemsCollection>
+        <streamUsersDB>Prototype</streamUsersDB>
+        <streamUsersCollection>StreamUsers</streamUsersCollection>
+        <clustersDB>Prototype</clustersDB>
+        <clustersCollection>MediaClusters</clustersCollection>
+    </mongodb>
+
+	<visualindex>
+        <learningfiles>/disk2_data/VisualIndex/learning_files</learningfiles>
+        <hostname>http://xxx.xxx.xxx.xxx:8080/VisualIndexService</hostname>
+        <collection>Prototype</collection>
+    </visualindex>
+    
+    <textindex>
+        <hostname>http://xxx.xxx.xxx.xxx/solr</hostname>
+        <collections>
+        	<webpages>WebPages</webpages>
+        	<media>MediaItems</media>
+        </collections>
+    </textindex>
+
+    <conceptdetector>
+        <matlabfile>
+        	/home/manosetro/git/mm-concept-detection-experiments/src/main/resources/twitter_training_params.mat
+       	</matlabfile>
+    </conceptdetector>
+   
+    <topology>
+        <focusedCrawlerName>FocusedCrawler</focusedCrawlerName>
+        <visualIndexerName>VisualIndexer</visualIndexerName>
+        <local>true</local>
+        <workers>1</workers>
+    </topology>
+
+</configuration>
